@@ -1,0 +1,98 @@
+# ---- OS / filesystem noise ----
+.DS_Store
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.Spotlight-V100/
+.Trashes/
+
+# ---- Editor / IDE settings ----
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/*.code-snippets
+.idea/
+*.iml
+
+# ---- Logs / runtime files ----
+*.log
+*.pid
+*.pid.lock
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ---- Environment / secrets ----
+.env
+.env.*
+!.env.example
+
+# ---- Generic build / cache outputs ----
+dist/
+build/
+out/
+target/
+coverage/
+.cache/
+.tmp/
+tmp/
+temp/
+
+# ---- JavaScript / TypeScript ----
+node_modules/
+.pnpm-store/
+.npm/
+.yarn/
+dist-ssr/
+*.local
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.Python
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# ---- Java / JVM ----
+.gradle/
+*.class
+
+# ---- .NET ----
+bin/
+obj/
+*.user
+*.rsuser
+*.suo
+
+# ---- Optional local database / dumps ----
+*.sqlite
+*.sqlite3
+*.db
+db.sqlite3
+
+# ---- Django runtime outputs ----
+media/
+staticfiles/
+
+# ---- FTmixer local planning/reference artifacts ----
+reference code/
+statement.txt
+partA-checklist.md
+monitoring-board.md
+worklog.md
+plan-ftMixer.prompt.md
+
+# Keep editor config local for this repo
+.vscode/
