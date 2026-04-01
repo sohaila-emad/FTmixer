@@ -69,3 +69,38 @@ input {
   border-radius: 8px;
   padding: 0.4rem 0.45rem;
 }
+
+.app-shell {
+  min-height: 100vh;
+}
+
+.mode-switch-bar {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid rgba(142, 232, 255, 0.24);
+  background:
+    linear-gradient(180deg, rgba(9, 21, 37, 0.95), rgba(7, 18, 30, 0.92)),
+    radial-gradient(circle at 20% 20%, rgba(34, 182, 255, 0.2), transparent 48%);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  backdrop-filter: blur(8px);
+}
+
+.mode-switch-link {
+  text-decoration: none;
+  color: var(--text-soft);
+  border: 1px solid rgba(142, 232, 255, 0.25);
+  border-radius: 999px;
+  padding: 0.34rem 0.8rem;
+  font-size: 0.86rem;
+  letter-spacing: 0.02em;
+}
+
+.mode-switch-link.active {
+  color: var(--text-main);
+  border-color: rgba(22, 244, 208, 0.52);
+  background: linear-gradient(120deg, rgba(34, 182, 255, 0.26), rgba(22, 244, 208, 0.22));
+}

@@ -15,8 +15,10 @@ from ImageMixer.serializers import (
 )
 from ImageMixer.services.controller import MixerController
 from ImageMixer.services.modes_enum import ComponentMode, MixMode, RegionMode
+from ImageMixer.services.transform_explorer.controller import TransformExplorerController
 
 controller = MixerController()
+transform_controller = TransformExplorerController()
 
 
 def image_to_numpy(image_file):
@@ -270,3 +272,100 @@ def set_mixing_mode(request):
         return Response({"success": True}, status=status.HTTP_200_OK)
     except KeyError:
         return Response({"success": False, "error": "Invalid mode"}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(["POST"])
+def partb_upload_source(request):
+    image_file = request.FILES.get("image")
+    if image_file is None:
+        return Response(
+            {"success": False, "error": "image is required"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        image_data = image_to_numpy(image_file)
+        transform_controller.load_source(image_data)
+        return Response(
+            {
+                "success": True,
+                "viewports": transform_controller.get_viewports(),
+            },
+            status=status.HTTP_200_OK,
+        )
+    except Exception as exc:
+        return Response(
+            {"success": False, "error": str(exc)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@api_view(["GET"])
+def partb_list_operations(request):
+    return Response(
+        {
+            "success": True,
+            "operations": transform_controller.list_operations(),
+        },
+        status=status.HTTP_200_OK,
+    )
+
+
+@api_view(["POST"])
+def partb_apply_operation(request):
+    payload = {
+        "operation_id": request.data.get("operation_id"),
+        "domain": request.data.get("domain", "spatial"),
+        "params": request.data.get("params", {}),
+        "repeat_fourier": request.data.get("repeat_fourier", 0),
+    }
+
+    try:
+        task_id = transform_controller.start_apply_async(payload)
+        return Response(
+            {
+                "success": True,
+                "status": "started",
+                "task_id": task_id,
+            },
+            status=status.HTTP_200_OK,
+        )
+    except Exception as exc:
+        return Response(
+            {"success": False, "error": str(exc)},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+
+@api_view(["GET"])
+def partb_status(request):
+    return Response(
+        {
+            "success": True,
+            **transform_controller.get_status(),
+        },
+        status=status.HTTP_200_OK,
+    )
+
+
+@api_view(["GET"])
+def partb_get_viewports(request):
+    return Response(
+        {
+            "success": True,
+            "viewports": transform_controller.get_viewports(),
+        },
+        status=status.HTTP_200_OK,
+    )
+
+
+@api_view(["POST"])
+def partb_cancel(request):
+    transform_controller.cancel()
+    return Response(
+        {
+            "success": True,
+            "message": "Part B cancellation requested",
+        },
+        status=status.HTTP_200_OK,
+    )

@@ -1,0 +1,56 @@
+@import "./MixerPage.css";
+
+.transform-shell {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  min-height: calc(100vh - 56px);
+}
+
+.transform-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(280px, 1fr));
+  gap: 0.8rem;
+}
+
+.param-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.45rem;
+}
+
+.param-grid label {
+  display: grid;
+  gap: 0.3rem;
+  color: var(--text-soft);
+  font-size: 0.82rem;
+}
+
+.inline-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.85rem;
+}
+
+.inline-toggle input {
+  width: auto;
+  margin: 0;
+}
+
+.error-text {
+  margin: 0.45rem 0 0;
+  color: #ffb29f;
+  font-size: 0.82rem;
+}
+
+@media (max-width: 1200px) {
+  .transform-shell {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 800px) {
+  .transform-grid {
+    grid-template-columns: 1fr;
+  }
+}

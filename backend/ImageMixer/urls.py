@@ -25,4 +25,10 @@ urlpatterns = [
     ),
     path("set-image-mode/", views.set_image_mode, name="set_image_mode"),
     path("set-mixing-mode/", views.set_mixing_mode, name="set_mixing_mode"),
+    path("partb/upload-source/", views.partb_upload_source, name="partb_upload_source"),
+    path("partb/operations/", views.partb_list_operations, name="partb_list_operations"),
+    path("partb/apply/", views.partb_apply_operation, name="partb_apply_operation"),
+    path("partb/status/", views.partb_status, name="partb_status"),
+    path("partb/viewports/", views.partb_get_viewports, name="partb_get_viewports"),
+    path("partb/cancel/", views.partb_cancel, name="partb_cancel"),
 ]

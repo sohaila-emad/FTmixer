@@ -88,11 +88,7 @@ staticfiles/
 
 # ---- FTmixer local planning/reference artifacts ----
 reference code/
-statement.txt
-partA-checklist.md
-monitoring-board.md
-worklog.md
-plan-ftMixer.prompt.md
+context and documentation/
 
 # Keep editor config local for this repo
 .vscode/
