@@ -52,6 +52,26 @@ class SetMixingModeSerializer(serializers.Serializer):
     mode = serializers.CharField()
 
 
+class ImageSizingSerializer(serializers.Serializer):
+    policy = serializers.ChoiceField(choices=["smallest", "largest", "fixed"], default="smallest")
+    keep_aspect_ratio = serializers.BooleanField(required=False, default=False)
+    fixed_width = serializers.IntegerField(required=False, min_value=1)
+    fixed_height = serializers.IntegerField(required=False, min_value=1)
+    apply_now = serializers.BooleanField(required=False, default=True)
+
+    def validate(self, attrs):
+        policy = attrs.get("policy", "smallest")
+        if policy == "fixed":
+            if attrs.get("fixed_width") is None or attrs.get("fixed_height") is None:
+                raise serializers.ValidationError("fixed_width and fixed_height are required for fixed policy")
+        return attrs
+
+
+class ProcessingOptionsSerializer(serializers.Serializer):
+    simulate_bottleneck = serializers.BooleanField(required=False, default=False)
+    bottleneck_seconds = serializers.FloatField(required=False, default=0.0, min_value=0.0, max_value=10.0)
+
+
 def numpy_to_base64(image: np.ndarray) -> str:
     success, encoded = cv2.imencode(".png", image)
     if not success:

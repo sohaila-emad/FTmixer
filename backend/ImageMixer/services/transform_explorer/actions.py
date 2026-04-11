@@ -4,10 +4,11 @@ from typing import Callable
 import numpy as np
 
 from ImageMixer.services.transform_explorer.complex_helpers import (
-    build_window,
+    build_convolution_kernel,
+    convolve_complex,
     repeat_fourier_transform,
-    resize_complex,
     rotate_complex,
+    stretch_complex,
 )
 
 
@@ -45,13 +46,9 @@ def _complex_exponential(image: np.ndarray, params: dict) -> np.ndarray:
 
 
 def _stretch(image: np.ndarray, params: dict) -> np.ndarray:
-    h, w = image.shape
     scale_x = max(1e-6, float(params.get("scale_x", 1.0)))
     scale_y = max(1e-6, float(params.get("scale_y", 1.0)))
-
-    new_w = max(1, int(round(w * scale_x)))
-    new_h = max(1, int(round(h * scale_y)))
-    return resize_complex(image, new_w, new_h)
+    return stretch_complex(image, scale_x, scale_y)
 
 
 def _mirror(image: np.ndarray, params: dict) -> np.ndarray:
@@ -141,8 +138,9 @@ def _integrate(image: np.ndarray, params: dict) -> np.ndarray:
 
 def _window_multiply(image: np.ndarray, params: dict) -> np.ndarray:
     window_type = str(params.get("window_type", "rectangular"))
-    window = build_window(image.shape, window_type, params)
-    return image * window
+    kernel = build_convolution_kernel(window_type, params)
+    step_size = max(1, int(params.get("step_size", 1)))
+    return convolve_complex(image, kernel, step_size)
 
 
 def _fourier_repeat(image: np.ndarray, params: dict) -> np.ndarray:
@@ -153,12 +151,12 @@ def _fourier_repeat(image: np.ndarray, params: dict) -> np.ndarray:
 def _operation_specs() -> list[OperationSpec]:
     base_window_params = [
         {"id": "window_type", "label": "Window Type", "type": "select", "options": ["rectangular", "gaussian", "hamming", "hanning"], "default": "rectangular"},
-        {"id": "width_ratio", "label": "Width Ratio", "type": "number", "min": 0.05, "max": 1.0, "step": 0.01, "default": 1.0},
-        {"id": "height_ratio", "label": "Height Ratio", "type": "number", "min": 0.05, "max": 1.0, "step": 0.01, "default": 1.0},
-        {"id": "center_x_ratio", "label": "Center X Ratio", "type": "number", "min": 0.0, "max": 1.0, "step": 0.01, "default": 0.5},
-        {"id": "center_y_ratio", "label": "Center Y Ratio", "type": "number", "min": 0.0, "max": 1.0, "step": 0.01, "default": 0.5},
-        {"id": "sigma_x", "label": "Gaussian Sigma X", "type": "number", "min": 0.01, "max": 1.0, "step": 0.01, "default": 0.2},
-        {"id": "sigma_y", "label": "Gaussian Sigma Y", "type": "number", "min": 0.01, "max": 1.0, "step": 0.01, "default": 0.2},
+        {"id": "kernel_width", "label": "Kernel Width", "type": "int", "min": 1, "max": 1000, "step": 2, "default": 31},
+        {"id": "kernel_height", "label": "Kernel Height", "type": "int", "min": 1, "max": 1000, "step": 2, "default": 31},
+        {"id": "step_size", "label": "Step Size", "type": "int", "min": 1, "max": 1000, "step": 1, "default": 1},
+        {"id": "sigma_x", "label": "Gaussian Sigma X", "type": "number", "min": 0.1, "max": 100.0, "step": 0.1, "default": 3.0, "windowTypes": ["gaussian"]},
+        {"id": "sigma_y", "label": "Gaussian Sigma Y", "type": "number", "min": 0.1, "max": 100.0, "step": 0.1, "default": 3.0, "windowTypes": ["gaussian"]},
+        {"id": "hamming_offset", "label": "Hamming Offset", "type": "number", "min": 0.0, "max": 1.0, "step": 0.01, "default": 0.54, "windowTypes": ["hamming"]},
     ]
 
     return [
@@ -178,10 +176,12 @@ def _operation_specs() -> list[OperationSpec]:
             name="Multiply By Complex Exponential",
             description="Multiply by A * exp(j * (wx*x + wy*y + phase)).",
             parameters=[
-                {"id": "amplitude", "label": "Amplitude", "type": "number", "min": 0.0, "max": 10.0, "step": 0.01, "default": 1.0},
-                {"id": "omega_x", "label": "Omega X", "type": "number", "min": -1.0, "max": 1.0, "step": 0.01, "default": 0.0},
-                {"id": "omega_y", "label": "Omega Y", "type": "number", "min": -1.0, "max": 1.0, "step": 0.01, "default": 0.0},
-                {"id": "phase", "label": "Phase", "type": "number", "min": -6.283185, "max": 6.283185, "step": 0.01, "default": 0.0},
+                {"id": "amplitude", "label": "Amplitude", "type": "number", "min": 0.0, "max": 1000.0, "step": 0.01, "default": 1.0},
+                {"id": "omega_x", "label": "Omega X", "type": "number", "min": -100.0, "max": 100.0, "step": 0.01, "default": 0.0},
+                {"id": "omega_y", "label": "Omega Y", "type": "number", "min": -100.0, "max": 100.0, "step": 0.01, "default": 0.0},
+                {"id": "phase", "label": "Phase", "type": "number", "min": -1000, "max": 1000, "step": 0.01, "default": 0.0},
+
+                # {"id": "phase", "label": "Phase", "type": "number", "min": -6.283185, "max": 6.283185, "step": 0.01, "default": 0.0},
             ],
             apply_spatial=_complex_exponential,
             apply_frequency=_complex_exponential,
@@ -191,8 +191,8 @@ def _operation_specs() -> list[OperationSpec]:
             name="Stretch",
             description="Scale image by fractional or integer factors.",
             parameters=[
-                {"id": "scale_x", "label": "Scale X", "type": "number", "min": 0.1, "max": 6.0, "step": 0.01, "default": 1.0},
-                {"id": "scale_y", "label": "Scale Y", "type": "number", "min": 0.1, "max": 6.0, "step": 0.01, "default": 1.0},
+                {"id": "scale_x", "label": "Scale X", "type": "number", "min": 0.00001, "max": 1000.0, "step": 0.01, "default": 1.0},
+                {"id": "scale_y", "label": "Scale Y", "type": "number", "min": 0.00001, "max": 1000.0, "step": 0.01, "default": 1.0},
             ],
             apply_spatial=_stretch,
             apply_frequency=_stretch,
@@ -254,7 +254,7 @@ def _operation_specs() -> list[OperationSpec]:
         OperationSpec(
             operation_id="window_multiply",
             name="Multiply By 2D Window",
-            description="Multiply image by rectangular/gaussian/hamming/hanning window.",
+            description="Apply sliding-window convolution using rectangular/gaussian/hamming/hanning kernel.",
             parameters=base_window_params,
             apply_spatial=_window_multiply,
             apply_frequency=_window_multiply,

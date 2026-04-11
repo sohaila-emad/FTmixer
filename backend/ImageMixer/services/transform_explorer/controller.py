@@ -9,7 +9,6 @@ from ImageMixer.services.transform_explorer.complex_helpers import (
     image_to_gray_float,
     normalize_component,
     numpy_to_base64,
-    repeat_fourier_transform,
 )
 from ImageMixer.services.transform_explorer.validators import sanitize_apply_request
 
@@ -77,7 +76,7 @@ class TransformExplorerController:
             if self._is_task_cancelled(task_id, cancel_event):
                 return
 
-            operation_id, domain, params, repeat_fourier = sanitize_apply_request(payload, self.registry)
+            operation_id, domain, params = sanitize_apply_request(payload, self.registry)
             operation = self.registry[operation_id]
 
             self._set_progress(task_id, 20)
@@ -87,9 +86,6 @@ class TransformExplorerController:
                     return
 
                 self._set_progress(task_id, 60)
-                if repeat_fourier > 0:
-                    result_spatial = repeat_fourier_transform(result_spatial, repeat_fourier)
-
                 result_frequency = fft2c(result_spatial)
             else:
                 result_frequency = operation.apply_frequency(self.source_frequency.copy(), params)
@@ -97,9 +93,6 @@ class TransformExplorerController:
                     return
 
                 self._set_progress(task_id, 60)
-                if repeat_fourier > 0:
-                    result_frequency = repeat_fourier_transform(result_frequency, repeat_fourier)
-
                 result_spatial = ifft2c(result_frequency)
 
             if self._is_task_cancelled(task_id, cancel_event):
@@ -154,11 +147,61 @@ class TransformExplorerController:
         }
 
     def _encode_components(self, data: np.ndarray, is_frequency: bool) -> dict:
+        mag_data = np.abs(data)
+        if is_frequency:
+            mag_data = np.log1p(mag_data)
+
+        mag_min = float(np.min(mag_data))
+        mag_max = float(np.max(mag_data))
+
         return {
-            "magnitude": numpy_to_base64(normalize_component(data, "magnitude", log_magnitude=is_frequency)),
+            "magnitude": numpy_to_base64(
+                normalize_component(
+                    data,
+                    "magnitude",
+                    log_magnitude=is_frequency,
+                    normalize_min=mag_min,
+                    normalize_max=mag_max,
+                )
+            ),
             "phase": numpy_to_base64(normalize_component(data, "phase", log_magnitude=False)),
             "real": numpy_to_base64(normalize_component(data, "real", log_magnitude=False)),
             "imaginary": numpy_to_base64(normalize_component(data, "imaginary", log_magnitude=False)),
+        }
+
+    def _encode_components_with_reference(self, data: np.ndarray, reference: np.ndarray, is_frequency: bool) -> dict:
+        ref_mag = np.abs(reference)
+        if is_frequency:
+            ref_mag = np.log1p(ref_mag)
+
+        mag_min = float(np.min(ref_mag))
+        mag_max = float(np.max(ref_mag))
+
+        return {
+            "magnitude": numpy_to_base64(
+                normalize_component(
+                    data,
+                    "magnitude",
+                    log_magnitude=is_frequency,
+                    normalize_min=mag_min,
+                    normalize_max=mag_max,
+                )
+            ),
+            "phase": numpy_to_base64(normalize_component(data, "phase", log_magnitude=False)),
+            "real": numpy_to_base64(normalize_component(data, "real", log_magnitude=False)),
+            "imaginary": numpy_to_base64(normalize_component(data, "imaginary", log_magnitude=False)),
+        }
+
+    def get_meta(self) -> dict:
+        if self.source_spatial is None:
+            return {"source_shape": None}
+
+        h, w = self.source_spatial.shape
+        return {
+            "source_shape": {
+                "height": int(h),
+                "width": int(w),
+            }
         }
 
     def get_viewports(self) -> dict:
@@ -172,7 +215,15 @@ class TransformExplorerController:
 
         return {
             "spatial_original": self._encode_components(self.source_spatial, is_frequency=False),
-            "spatial_transformed": self._encode_components(self.transformed_spatial, is_frequency=False),
+            "spatial_transformed": self._encode_components_with_reference(
+                self.transformed_spatial,
+                self.source_spatial,
+                is_frequency=False,
+            ),
             "frequency_original": self._encode_components(self.source_frequency, is_frequency=True),
-            "frequency_transformed": self._encode_components(self.transformed_frequency, is_frequency=True),
+            "frequency_transformed": self._encode_components_with_reference(
+                self.transformed_frequency,
+                self.source_frequency,
+                is_frequency=True,
+            ),
         }

@@ -19,6 +19,15 @@ export function ControlPanel() {
     setRoi,
     currentOutputViewer,
     setCurrentOutputViewer,
+    sizePolicy,
+    keepAspectRatio,
+    fixedSize,
+    setFixedSize,
+    applyImageSizing,
+    simulateBottleneck,
+    setSimulateBottleneck,
+    bottleneckSeconds,
+    setBottleneckSeconds,
     mixImages,
     isMixing,
   } = useImageMixer();
@@ -78,6 +87,67 @@ export function ControlPanel() {
       </div>
 
       <div className="panel-card">
+        <h3>Image Sizing</h3>
+        <label>Sizing Policy</label>
+        <select
+          value={sizePolicy}
+          onChange={(e) => {
+            const policy = e.target.value;
+            applyImageSizing({ policy }).catch(() => {});
+          }}
+        >
+          <option value="smallest">Smallest</option>
+          <option value="largest">Largest</option>
+          <option value="fixed">Fixed</option>
+        </select>
+
+        <label className="inline-toggle" style={{ marginTop: "0.55rem" }}>
+          <input
+            type="checkbox"
+            checked={keepAspectRatio}
+            onChange={(e) => {
+              const checked = e.target.checked;
+              applyImageSizing({ keepAspectRatio: checked, applyNow: false }).catch(() => {});
+            }}
+          />
+          <span>Keep Aspect Ratio</span>
+        </label>
+
+        {sizePolicy === "fixed" ? (
+          <div className="grid-two" style={{ marginTop: "0.5rem" }}>
+            <label>
+              Width (px)
+              <input
+                type="number"
+                min={1}
+                value={fixedSize.width}
+                onChange={(e) => {
+                  const width = Number(e.target.value || 1);
+                  const next = { ...fixedSize, width };
+                  setFixedSize(next);
+                  applyImageSizing({ policy: "fixed", fixedWidth: width, fixedHeight: next.height }).catch(() => {});
+                }}
+              />
+            </label>
+            <label>
+              Height (px)
+              <input
+                type="number"
+                min={1}
+                value={fixedSize.height}
+                onChange={(e) => {
+                  const height = Number(e.target.value || 1);
+                  const next = { ...fixedSize, height };
+                  setFixedSize(next);
+                  applyImageSizing({ policy: "fixed", fixedWidth: next.width, fixedHeight: height }).catch(() => {});
+                }}
+              />
+            </label>
+          </div>
+        ) : null}
+      </div>
+
+      <div className="panel-card">
         <h3>Mixing Mode</h3>
         <select value={mixingMode} onChange={(e) => setMixingMode(e.target.value)}>
           <option value="MAGNITUDE_PHASE">Magnitude / Phase</option>
@@ -127,6 +197,29 @@ export function ControlPanel() {
           </select>
         </div>
       ))}
+
+      <div className="panel-card">
+        <h3>Processing</h3>
+        <label className="inline-toggle">
+          <input
+            type="checkbox"
+            checked={simulateBottleneck}
+            onChange={(e) => setSimulateBottleneck(e.target.checked)}
+          />
+          <span>Simulate FFT Bottleneck</span>
+        </label>
+        <label>
+          Delay Seconds
+          <input
+            type="number"
+            min={0}
+            max={10}
+            step={0.1}
+            value={bottleneckSeconds}
+            onChange={(e) => setBottleneckSeconds(Number(e.target.value || 0))}
+          />
+        </label>
+      </div>
 
       <div className="panel-card">
         <button type="button" onClick={() => mixImages()}>

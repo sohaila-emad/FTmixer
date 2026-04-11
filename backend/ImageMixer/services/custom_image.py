@@ -39,17 +39,29 @@ class CustomImage:
         self._mix_fft = None
         self._display_fft = None
 
-    def resize(self, height: int, width: int):
+    def resize(self, height: int, width: int, keep_aspect_ratio: bool = False):
         if not self.loaded:
             return
         if height <= 0 or width <= 0:
             raise ValueError("height and width must be positive")
 
-        current_h, current_w = self._mix_image.shape[:2]
-        if current_h == height and current_w == width:
-            return
+        if not keep_aspect_ratio:
+            interpolation = cv2.INTER_AREA if (height < self._source_gray.shape[0] or width < self._source_gray.shape[1]) else cv2.INTER_LINEAR
+            self._mix_image = cv2.resize(self._source_gray, (width, height), interpolation=interpolation)
+        else:
+            src_h, src_w = self._source_gray.shape[:2]
+            scale = min(width / float(src_w), height / float(src_h))
+            new_w = max(1, int(round(src_w * scale)))
+            new_h = max(1, int(round(src_h * scale)))
+            interpolation = cv2.INTER_AREA if scale < 1.0 else cv2.INTER_LINEAR
+            resized = cv2.resize(self._source_gray, (new_w, new_h), interpolation=interpolation)
 
-        self._mix_image = cv2.resize(self._source_gray, (width, height), interpolation=cv2.INTER_AREA)
+            canvas = np.zeros((height, width), dtype=np.uint8)
+            top = (height - new_h) // 2
+            left = (width - new_w) // 2
+            canvas[top : top + new_h, left : left + new_w] = resized
+            self._mix_image = canvas
+
         self._invalidate_fft_cache()
         self._compute_mix_fft()
 

@@ -1,7 +1,7 @@
 from ImageMixer.services.transform_explorer.actions import OperationSpec
 
 
-def sanitize_apply_request(payload: dict, registry: dict[str, OperationSpec]) -> tuple[str, str, dict, int]:
+def sanitize_apply_request(payload: dict, registry: dict[str, OperationSpec]) -> tuple[str, str, dict]:
     operation_id = str(payload.get("operation_id", "")).strip()
     if operation_id not in registry:
         raise ValueError("Invalid operation_id")
@@ -9,10 +9,6 @@ def sanitize_apply_request(payload: dict, registry: dict[str, OperationSpec]) ->
     domain = str(payload.get("domain", "spatial")).strip().lower()
     if domain not in ("spatial", "frequency"):
         raise ValueError("domain must be spatial or frequency")
-
-    repeat_fourier = int(payload.get("repeat_fourier", 0))
-    if repeat_fourier < 0 or repeat_fourier > 12:
-        raise ValueError("repeat_fourier must be in range 0..12")
 
     raw_params = payload.get("params", {})
     if raw_params is None:
@@ -67,4 +63,4 @@ def sanitize_apply_request(payload: dict, registry: dict[str, OperationSpec]) ->
 
         params[key] = value
 
-    return operation_id, domain, params, repeat_fourier
+    return operation_id, domain, params

@@ -27,6 +27,13 @@ export function ImageMixerProvider({ children }) {
   const [outputImages, setOutputImages] = useState([null, null]);
   const [currentOutputViewer, setCurrentOutputViewer] = useState(0);
 
+  const [sizePolicy, setSizePolicy] = useState("smallest");
+  const [keepAspectRatio, setKeepAspectRatio] = useState(false);
+  const [fixedSize, setFixedSize] = useState({ width: 512, height: 512 });
+
+  const [simulateBottleneck, setSimulateBottleneck] = useState(false);
+  const [bottleneckSeconds, setBottleneckSeconds] = useState(2);
+
   const [isMixing, setIsMixing] = useState(false);
   const [mixingProgress, setMixingProgress] = useState(0);
   const pollingRef = useRef(null);
@@ -98,11 +105,15 @@ export function ImageMixerProvider({ children }) {
     });
 
     if (response.data.success) {
-      setImages((prev) => {
-        const next = [...prev];
-        next[imageIndex] = response.data.image_data;
-        return next;
-      });
+      if (Array.isArray(response.data.images_data) && response.data.images_data.length === 4) {
+        setImages(response.data.images_data);
+      } else {
+        setImages((prev) => {
+          const next = [...prev];
+          next[imageIndex] = response.data.image_data;
+          return next;
+        });
+      }
       return { success: true };
     }
 
@@ -221,6 +232,56 @@ export function ImageMixerProvider({ children }) {
     );
   }, []);
 
+  const applyImageSizing = useCallback(async (overrides = {}) => {
+    const policy = overrides.policy ?? sizePolicy;
+    const keepAspect = overrides.keepAspectRatio ?? keepAspectRatio;
+    const width = Number(overrides.fixedWidth ?? fixedSize.width);
+    const height = Number(overrides.fixedHeight ?? fixedSize.height);
+    const applyNow = overrides.applyNow ?? true;
+
+    const payload = {
+      policy,
+      keep_aspect_ratio: keepAspect,
+      apply_now: applyNow,
+    };
+
+    if (policy === "fixed") {
+      payload.fixed_width = width;
+      payload.fixed_height = height;
+    }
+
+    const response = await axios.post(`${API_BASE_URL}/set-image-sizing/`, payload);
+    if (!response.data.success) {
+      return { success: false, error: response.data.error || "Failed to update image sizing" };
+    }
+
+    const sizing = response.data.sizing || {};
+    setSizePolicy(sizing.policy || policy);
+    setKeepAspectRatio(Boolean(sizing.keep_aspect_ratio ?? keepAspect));
+    setFixedSize({
+      width: Number(sizing.fixed_width ?? width),
+      height: Number(sizing.fixed_height ?? height),
+    });
+
+    if (Array.isArray(response.data.images_data) && response.data.images_data.length === 4) {
+      setImages(response.data.images_data);
+    }
+
+    return { success: true };
+  }, [fixedSize.height, fixedSize.width, keepAspectRatio, sizePolicy]);
+
+  const applyProcessingOptions = useCallback(async () => {
+    const response = await axios.post(`${API_BASE_URL}/set-processing-options/`, {
+      simulate_bottleneck: simulateBottleneck,
+      bottleneck_seconds: bottleneckSeconds,
+    });
+
+    if (!response.data.success) {
+      return { success: false, error: response.data.error || "Failed to update processing options" };
+    }
+    return { success: true };
+  }, [bottleneckSeconds, simulateBottleneck]);
+
   const mixImages = useCallback(async (overrideRoi = null, overrideOutputViewer = null) => {
     const requestId = requestIdRef.current + 1;
     requestIdRef.current = requestId;
@@ -237,6 +298,11 @@ export function ImageMixerProvider({ children }) {
     }
 
     try {
+      const processingResult = await applyProcessingOptions();
+      if (!processingResult.success) {
+        return processingResult;
+      }
+
       await setBackendModes();
       if (requestId !== requestIdRef.current) {
         return { success: false, error: "Superseded by a newer request" };
@@ -338,7 +404,7 @@ export function ImageMixerProvider({ children }) {
       }
       return { success: false, error: error.message };
     }
-  }, [setBackendModes]);
+  }, [applyProcessingOptions, setBackendModes]);
 
   const value = {
     images,
@@ -361,6 +427,17 @@ export function ImageMixerProvider({ children }) {
     outputImages,
     currentOutputViewer,
     setCurrentOutputViewer,
+    sizePolicy,
+    setSizePolicy,
+    keepAspectRatio,
+    setKeepAspectRatio,
+    fixedSize,
+    setFixedSize,
+    applyImageSizing,
+    simulateBottleneck,
+    setSimulateBottleneck,
+    bottleneckSeconds,
+    setBottleneckSeconds,
     isMixing,
     mixingProgress,
     uploadImage,

@@ -126,6 +126,7 @@
   justify-content: center;
   overflow: hidden;
   position: relative;
+  min-height: 0;
 }
 
 .fit-image {
@@ -133,6 +134,8 @@
   height: 100%;
   object-fit: contain;
   background: linear-gradient(145deg, #040c16, #081221);
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
 .roi-inner-highlight,

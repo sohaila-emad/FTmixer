@@ -6,9 +6,11 @@ from rest_framework.response import Response
 
 from ImageMixer.serializers import (
     BrightnessContrastSerializer,
+    ImageSizingSerializer,
     ImageIndexSerializer,
     ImageUploadSerializer,
     MixRequestSerializer,
+    ProcessingOptionsSerializer,
     SetImageModeSerializer,
     SetMixingModeSerializer,
     numpy_to_base64,
@@ -45,6 +47,16 @@ def normalize_component(component_type: str, comp: np.ndarray) -> np.ndarray:
     return norm
 
 
+def collect_display_images() -> list[str | None]:
+    images_data = []
+    for image in controller.images:
+        if image.loaded:
+            images_data.append(numpy_to_base64(image.get_display_image()))
+        else:
+            images_data.append(None)
+    return images_data
+
+
 @api_view(["POST"])
 def upload_image(request):
     serializer = ImageUploadSerializer(data=request.data)
@@ -67,6 +79,7 @@ def upload_image(request):
                 "success": True,
                 "image_index": image_index,
                 "image_data": image_base64,
+                "images_data": collect_display_images(),
             },
             status=status.HTTP_200_OK,
         )
@@ -275,6 +288,65 @@ def set_mixing_mode(request):
 
 
 @api_view(["POST"])
+def set_image_sizing(request):
+    serializer = ImageSizingSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        apply_now = serializer.validated_data.get("apply_now", True)
+        controller.set_image_sizing(
+            policy=serializer.validated_data["policy"],
+            keep_aspect_ratio=serializer.validated_data.get("keep_aspect_ratio", False),
+            fixed_width=serializer.validated_data.get("fixed_width"),
+            fixed_height=serializer.validated_data.get("fixed_height"),
+        )
+        images_data = None
+        if apply_now:
+            controller.update_image_processing()
+            images_data = collect_display_images()
+
+        return Response(
+            {
+                "success": True,
+                "sizing": controller.get_sizing_config(),
+                "images_data": images_data,
+            },
+            status=status.HTTP_200_OK,
+        )
+    except Exception as exc:
+        return Response(
+            {"success": False, "error": str(exc)},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+
+@api_view(["POST"])
+def set_processing_options(request):
+    serializer = ProcessingOptionsSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        controller.set_processing_options(
+            simulate_bottleneck=serializer.validated_data.get("simulate_bottleneck", False),
+            bottleneck_seconds=serializer.validated_data.get("bottleneck_seconds", 0.0),
+        )
+        return Response(
+            {
+                "success": True,
+                "processing_options": controller.get_processing_options(),
+            },
+            status=status.HTTP_200_OK,
+        )
+    except Exception as exc:
+        return Response(
+            {"success": False, "error": str(exc)},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+
+@api_view(["POST"])
 def partb_upload_source(request):
     image_file = request.FILES.get("image")
     if image_file is None:
@@ -290,6 +362,7 @@ def partb_upload_source(request):
             {
                 "success": True,
                 "viewports": transform_controller.get_viewports(),
+                "meta": transform_controller.get_meta(),
             },
             status=status.HTTP_200_OK,
         )
@@ -317,7 +390,6 @@ def partb_apply_operation(request):
         "operation_id": request.data.get("operation_id"),
         "domain": request.data.get("domain", "spatial"),
         "params": request.data.get("params", {}),
-        "repeat_fourier": request.data.get("repeat_fourier", 0),
     }
 
     try:
@@ -354,6 +426,7 @@ def partb_get_viewports(request):
         {
             "success": True,
             "viewports": transform_controller.get_viewports(),
+            "meta": transform_controller.get_meta(),
         },
         status=status.HTTP_200_OK,
     )

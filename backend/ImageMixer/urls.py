@@ -25,6 +25,8 @@ urlpatterns = [
     ),
     path("set-image-mode/", views.set_image_mode, name="set_image_mode"),
     path("set-mixing-mode/", views.set_mixing_mode, name="set_mixing_mode"),
+    path("set-image-sizing/", views.set_image_sizing, name="set_image_sizing"),
+    path("set-processing-options/", views.set_processing_options, name="set_processing_options"),
     path("partb/upload-source/", views.partb_upload_source, name="partb_upload_source"),
     path("partb/operations/", views.partb_list_operations, name="partb_list_operations"),
     path("partb/apply/", views.partb_apply_operation, name="partb_apply_operation"),

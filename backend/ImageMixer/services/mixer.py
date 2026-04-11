@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Optional
+from typing import Callable, Optional
 
 from ImageMixer.services.modes_enum import ComponentMode, MixMode, RegionMode
 
@@ -54,9 +54,21 @@ class FFTImageMixer:
         boundaries: list[int],
         global_region_mode: RegionMode,
         image_region_modes: Optional[list[RegionMode]] = None,
+        progress_callback: Optional[Callable[[float], None]] = None,
     ) -> np.ndarray:
         if image_region_modes is None:
             image_region_modes = [RegionMode.INNER, RegionMode.INNER, RegionMode.INNER, RegionMode.INNER]
+
+        active_indices = [
+            idx for idx, image in enumerate(images)
+            if image.loaded and weights[idx] > 0
+        ]
+        total_steps = max(1, len(active_indices))
+        processed_steps = 0
+
+        def report_progress():
+            if progress_callback is not None:
+                progress_callback(min(1.0, processed_steps / float(total_steps)))
 
         if self.current_mode == MixMode.MAGNITUDE_PHASE:
             mag_sum = None
@@ -84,6 +96,9 @@ class FFTImageMixer:
                     mag_sum = mag * w if mag_sum is None else mag_sum + (mag * w)
                 elif selected == ComponentMode.PHASE:
                     phase_sum = phase * w if phase_sum is None else phase_sum + (phase * w)
+
+                processed_steps += 1
+                report_progress()
 
             if mag_sum is None and phase_sum is None:
                 return self._empty_mix_result(images)
@@ -119,6 +134,9 @@ class FFTImageMixer:
                     real_sum = real * w if real_sum is None else real_sum + (real * w)
                 elif selected == ComponentMode.IMAGINARY:
                     imag_sum = imag * w if imag_sum is None else imag_sum + (imag * w)
+
+                processed_steps += 1
+                report_progress()
 
             if real_sum is None and imag_sum is None:
                 return self._empty_mix_result(images)

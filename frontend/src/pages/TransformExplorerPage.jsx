@@ -1,6 +1,7 @@
 import React from "react";
 import { TransformControlPanel } from "../components/transformExplorer/TransformControlPanel";
 import { TransformExplorerProvider } from "../components/transformExplorer/TransformExplorerContext";
+import { TransformGuidePanel } from "../components/transformExplorer/TransformGuidePanel";
 import { TransformViewport } from "../components/transformExplorer/TransformViewport";
 import "../styles/TransformExplorerPage.css";
 
@@ -20,6 +21,8 @@ export function TransformExplorerPage() {
             <TransformViewport viewportKey="frequency_original" title="Frequency Original" />
             <TransformViewport viewportKey="frequency_transformed" title="Frequency Transformed" />
           </section>
+
+          <TransformGuidePanel />
         </main>
       </div>
     </TransformExplorerProvider>

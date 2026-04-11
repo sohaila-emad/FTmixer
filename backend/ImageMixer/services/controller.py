@@ -1,4 +1,5 @@
 import threading
+import time
 
 import cv2
 import numpy as np
@@ -26,6 +27,13 @@ class MixerController:
         self._progress = 0
         self._latest_error = None
 
+        self._size_policy = "smallest"
+        self._keep_aspect_ratio = False
+        self._fixed_size = (512, 512)
+
+        self._simulate_bottleneck = False
+        self._bottleneck_seconds = 0.0
+
     def _is_task_cancelled(self, task_id: int, cancel_event: threading.Event) -> bool:
         return cancel_event.is_set() or task_id != self._active_task_id
 
@@ -48,24 +56,57 @@ class MixerController:
     def set_weights(self, weights: list[float]):
         self.weights = [float(v) for v in weights]
 
-    def _get_min_size(self):
+    def _get_target_size(self):
         loaded = [img for img in self.images if img.loaded]
         if not loaded:
             return None
 
+        if self._size_policy == "fixed":
+            return self._fixed_size
+
         heights = [img.get_image_for_mixing().shape[0] for img in loaded]
         widths = [img.get_image_for_mixing().shape[1] for img in loaded]
+        if self._size_policy == "largest":
+            return max(heights), max(widths)
         return min(heights), min(widths)
 
+    def set_image_sizing(
+        self,
+        policy: str,
+        keep_aspect_ratio: bool,
+        fixed_width: int | None = None,
+        fixed_height: int | None = None,
+    ):
+        normalized = str(policy).lower().strip()
+        if normalized not in ("smallest", "largest", "fixed"):
+            raise ValueError("policy must be one of smallest, largest, fixed")
+
+        if normalized == "fixed":
+            if fixed_width is None or fixed_height is None:
+                raise ValueError("fixed width and height are required for fixed policy")
+            if fixed_width <= 0 or fixed_height <= 0:
+                raise ValueError("fixed width and height must be positive")
+            self._fixed_size = (int(fixed_height), int(fixed_width))
+
+        self._size_policy = normalized
+        self._keep_aspect_ratio = bool(keep_aspect_ratio)
+
+    def set_processing_options(self, simulate_bottleneck: bool, bottleneck_seconds: float):
+        seconds = float(bottleneck_seconds)
+        if seconds < 0.0:
+            raise ValueError("bottleneck_seconds must be non-negative")
+        self._simulate_bottleneck = bool(simulate_bottleneck)
+        self._bottleneck_seconds = seconds
+
     def update_image_processing(self):
-        min_size = self._get_min_size()
-        if min_size is None:
+        target_size = self._get_target_size()
+        if target_size is None:
             return
 
-        h, w = min_size
+        h, w = target_size
         for image in self.images:
             if image.loaded:
-                image.resize(h, w)
+                image.resize(h, w, keep_aspect_ratio=self._keep_aspect_ratio)
 
     def adjust_brightness_contrast(self, image_index: int, brightness: float, contrast: float):
         self.images[image_index].adjust_brightness_contrast(brightness, contrast)
@@ -95,6 +136,17 @@ class MixerController:
                 return
 
             self._set_progress(task_id, 20)
+
+            if self._simulate_bottleneck and self._bottleneck_seconds > 0.0:
+                steps = max(1, int(round(self._bottleneck_seconds / 0.1)))
+                sleep_interval = self._bottleneck_seconds / float(steps)
+                for step in range(steps):
+                    if self._is_task_cancelled(task_id, cancel_event):
+                        return
+                    time.sleep(sleep_interval)
+                    simulated = 20 + int(((step + 1) * 30) / steps)
+                    self._set_progress(task_id, simulated)
+
             normalized = [v / 100.0 for v in self.weights]
 
             if sum(normalized) == 0:
@@ -103,7 +155,14 @@ class MixerController:
                     self._set_progress(task_id, 100)
                 return
 
-            mixed = self.mixer.mix(self.images, normalized, self.roi, region_mode, image_region_modes)
+            mixed = self.mixer.mix(
+                self.images,
+                normalized,
+                self.roi,
+                region_mode,
+                image_region_modes,
+                progress_callback=lambda fraction: self._set_progress(task_id, 50 + int(fraction * 25)),
+            )
             if self._is_task_cancelled(task_id, cancel_event):
                 return
 
@@ -158,6 +217,20 @@ class MixerController:
             "is_mixing": self._is_mixing,
             "progress": self._progress,
             "error": self._latest_error,
+        }
+
+    def get_sizing_config(self):
+        return {
+            "policy": self._size_policy,
+            "keep_aspect_ratio": self._keep_aspect_ratio,
+            "fixed_width": self._fixed_size[1],
+            "fixed_height": self._fixed_size[0],
+        }
+
+    def get_processing_options(self):
+        return {
+            "simulate_bottleneck": self._simulate_bottleneck,
+            "bottleneck_seconds": self._bottleneck_seconds,
         }
 
     def get_output(self, output_viewer: int):

@@ -159,14 +159,21 @@ export function ComponentViewer({ index }) {
 
   const endToneDrag = useCallback(() => {
     toneDragRef.current = null;
+    if (toneUpdateRef.current) {
+      clearTimeout(toneUpdateRef.current);
+      toneUpdateRef.current = null;
+    }
     window.removeEventListener("mousemove", handleToneMove);
     window.removeEventListener("mouseup", endToneDrag);
+    window.removeEventListener("blur", endToneDrag);
   }, [handleToneMove]);
 
   const startToneDrag = (event) => {
     if (!components[index] || event.button !== 0) {
       return;
     }
+
+    event.preventDefault();
 
     toneDragRef.current = {
       startX: event.clientX,
@@ -177,6 +184,7 @@ export function ComponentViewer({ index }) {
 
     window.addEventListener("mousemove", handleToneMove);
     window.addEventListener("mouseup", endToneDrag);
+    window.addEventListener("blur", endToneDrag);
   };
 
   const moveRoi = useCallback((session, deltaX, deltaY) => {
@@ -272,6 +280,7 @@ export function ComponentViewer({ index }) {
       }
       window.removeEventListener("mousemove", handleToneMove);
       window.removeEventListener("mouseup", endToneDrag);
+      window.removeEventListener("blur", endToneDrag);
       window.removeEventListener("mousemove", handleRoiMove);
       window.removeEventListener("mouseup", endRoiDrag);
     };
@@ -340,6 +349,8 @@ export function ComponentViewer({ index }) {
               alt={`Component ${index + 1}`}
               className="fit-image"
               onLoad={refreshImageFrame}
+              draggable={false}
+              onDragStart={(event) => event.preventDefault()}
             />
 
             {roiDisplay && (

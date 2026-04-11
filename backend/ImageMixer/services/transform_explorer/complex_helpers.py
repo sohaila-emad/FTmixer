@@ -44,6 +44,38 @@ def resize_complex(image: np.ndarray, width: int, height: int) -> np.ndarray:
     return real + 1j * imag
 
 
+def stretch_complex(image: np.ndarray, scale_x: float, scale_y: float) -> np.ndarray:
+    h, w = image.shape
+    cx = (w - 1) / 2.0
+    cy = (h - 1) / 2.0
+
+    matrix = np.array(
+        [
+            [scale_x, 0.0, (1.0 - scale_x) * cx],
+            [0.0, scale_y, (1.0 - scale_y) * cy],
+        ],
+        dtype=np.float64,
+    )
+
+    real = cv2.warpAffine(
+        np.real(image),
+        matrix,
+        (w, h),
+        flags=cv2.INTER_LINEAR,
+        borderMode=cv2.BORDER_CONSTANT,
+        borderValue=0,
+    )
+    imag = cv2.warpAffine(
+        np.imag(image),
+        matrix,
+        (w, h),
+        flags=cv2.INTER_LINEAR,
+        borderMode=cv2.BORDER_CONSTANT,
+        borderValue=0,
+    )
+    return real + 1j * imag
+
+
 def rotate_complex(image: np.ndarray, angle_degrees: float, auto_fit: bool = True) -> np.ndarray:
     h, w = image.shape
     center = (w / 2.0, h / 2.0)
@@ -66,49 +98,74 @@ def rotate_complex(image: np.ndarray, angle_degrees: float, auto_fit: bool = Tru
     return real + 1j * imag
 
 
-def build_window(shape: tuple[int, int], kind: str, params: dict) -> np.ndarray:
-    h, w = shape
-    width_ratio = float(params.get("width_ratio", 1.0))
-    height_ratio = float(params.get("height_ratio", 1.0))
-    center_x_ratio = float(params.get("center_x_ratio", 0.5))
-    center_y_ratio = float(params.get("center_y_ratio", 0.5))
+def _ensure_odd(value: int) -> int:
+    n = max(1, int(value))
+    if n % 2 == 0:
+        n += 1
+    return n
 
-    patch_w = max(1, min(w, int(round(w * width_ratio))))
-    patch_h = max(1, min(h, int(round(h * height_ratio))))
 
-    center_x = int(round((w - 1) * center_x_ratio))
-    center_y = int(round((h - 1) * center_y_ratio))
+def _custom_hamming(length: int, offset: float) -> np.ndarray:
+    n = np.arange(length, dtype=np.float64)
+    if length <= 1:
+        return np.ones((1,), dtype=np.float64)
+    return offset - (1.0 - offset) * np.cos((2.0 * np.pi * n) / (length - 1))
 
-    left = max(0, min(w - patch_w, center_x - patch_w // 2))
-    top = max(0, min(h - patch_h, center_y - patch_h // 2))
 
-    full = np.zeros((h, w), dtype=np.float64)
+def build_convolution_kernel(kind: str, params: dict) -> np.ndarray:
+    kernel_w = _ensure_odd(int(params.get("kernel_width", 31)))
+    kernel_h = _ensure_odd(int(params.get("kernel_height", 31)))
 
     if kind == "rectangular":
-        patch = np.ones((patch_h, patch_w), dtype=np.float64)
+        kernel = np.ones((kernel_h, kernel_w), dtype=np.float64)
     elif kind == "gaussian":
-        sigma_x = max(1e-6, float(params.get("sigma_x", 0.2)))
-        sigma_y = max(1e-6, float(params.get("sigma_y", 0.2)))
-        x = np.linspace(-1.0, 1.0, patch_w)
-        y = np.linspace(-1.0, 1.0, patch_h)
-        xx, yy = np.meshgrid(x, y)
-        patch = np.exp(-0.5 * ((xx / sigma_x) ** 2 + (yy / sigma_y) ** 2))
-    elif kind == "hamming":
-        wy = np.hamming(patch_h)
-        wx = np.hamming(patch_w)
-        patch = np.outer(wy, wx)
+        sigma_x = max(1e-6, float(params.get("sigma_x", 3.0)))
+        sigma_y = max(1e-6, float(params.get("sigma_y", 3.0)))
+        gx = cv2.getGaussianKernel(kernel_w, sigma_x)
+        gy = cv2.getGaussianKernel(kernel_h, sigma_y)
+        kernel = gy @ gx.T
     elif kind == "hanning":
-        wy = np.hanning(patch_h)
-        wx = np.hanning(patch_w)
-        patch = np.outer(wy, wx)
+        wy = np.hanning(kernel_h) if kernel_h > 1 else np.ones((1,), dtype=np.float64)
+        wx = np.hanning(kernel_w) if kernel_w > 1 else np.ones((1,), dtype=np.float64)
+        kernel = np.outer(wy, wx)
+    elif kind == "hamming":
+        offset = float(params.get("hamming_offset", 0.54))
+        offset = max(0.0, min(1.0, offset))
+        wy = _custom_hamming(kernel_h, offset)
+        wx = _custom_hamming(kernel_w, offset)
+        kernel = np.outer(wy, wx)
     else:
         raise ValueError(f"Unsupported window type: {kind}")
 
-    full[top : top + patch_h, left : left + patch_w] = patch
-    return full
+    total = float(np.sum(kernel))
+    if abs(total) < 1e-12:
+        return kernel
+    return kernel / total
 
 
-def normalize_component(component: np.ndarray, component_name: str, log_magnitude: bool) -> np.ndarray:
+def convolve_complex(image: np.ndarray, kernel: np.ndarray, step_size: int) -> np.ndarray:
+    real = cv2.filter2D(np.real(image), ddepth=-1, kernel=kernel, borderType=cv2.BORDER_REFLECT)
+    imag = cv2.filter2D(np.imag(image), ddepth=-1, kernel=kernel, borderType=cv2.BORDER_REFLECT)
+    result = real + 1j * imag
+
+    step = max(1, int(step_size))
+    if step == 1:
+        return result
+
+    h, w = result.shape
+    sampled = result[::step, ::step]
+    up_real = cv2.resize(np.real(sampled), (w, h), interpolation=cv2.INTER_NEAREST)
+    up_imag = cv2.resize(np.imag(sampled), (w, h), interpolation=cv2.INTER_NEAREST)
+    return up_real + 1j * up_imag
+
+
+def normalize_component(
+    component: np.ndarray,
+    component_name: str,
+    log_magnitude: bool,
+    normalize_min: float | None = None,
+    normalize_max: float | None = None,
+) -> np.ndarray:
     name = component_name.lower()
 
     if name == "magnitude":
@@ -126,8 +183,12 @@ def normalize_component(component: np.ndarray, component_name: str, log_magnitud
     else:
         raise ValueError(f"Unsupported component: {component_name}")
 
-    min_v = np.min(data)
-    max_v = np.max(data)
+    if normalize_min is None or normalize_max is None:
+        min_v = np.min(data)
+        max_v = np.max(data)
+    else:
+        min_v = float(normalize_min)
+        max_v = float(normalize_max)
     if max_v - min_v < 1e-12:
         return np.zeros_like(data, dtype=np.uint8)
 

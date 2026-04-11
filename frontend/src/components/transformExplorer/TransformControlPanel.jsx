@@ -11,8 +11,6 @@ export function TransformControlPanel() {
     setParamValue,
     domain,
     setDomain,
-    repeatFourier,
-    setRepeatFourier,
     isApplying,
     progress,
     error,
@@ -22,6 +20,14 @@ export function TransformControlPanel() {
   } = useTransformExplorer();
 
   const fileRef = useRef(null);
+  const currentWindowType = String(parameterValues.window_type || "rectangular");
+
+  const visibleFields = (selectedOperation?.parameters || []).filter((field) => {
+    if (!Array.isArray(field.windowTypes)) {
+      return true;
+    }
+    return field.windowTypes.includes(currentWindowType);
+  });
 
   const renderField = (field) => {
     const value = parameterValues[field.id];
@@ -113,23 +119,13 @@ export function TransformControlPanel() {
           <option value="spatial">Spatial Domain</option>
           <option value="frequency">Frequency Domain</option>
         </select>
-
-        <h3>Repeat Fourier</h3>
-        <input
-          type="number"
-          min={0}
-          max={12}
-          step={1}
-          value={repeatFourier}
-          onChange={(event) => setRepeatFourier(Number.parseInt(event.target.value || "0", 10))}
-        />
       </div>
 
       <div className="panel-card">
         <h3>Parameters</h3>
-        {selectedOperation?.parameters?.length ? (
+        {visibleFields.length ? (
           <div className="param-grid">
-            {selectedOperation.parameters.map((field) => (
+            {visibleFields.map((field) => (
               <label key={field.id}>
                 <span>{field.label}</span>
                 {renderField(field)}

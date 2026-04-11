@@ -43,10 +43,10 @@ export function TransformExplorerProvider({ children }) {
   const [parameterValues, setParameterValues] = useState({});
 
   const [domain, setDomain] = useState("spatial");
-  const [repeatFourier, setRepeatFourier] = useState(0);
 
   const [viewports, setViewports] = useState(EMPTY_VIEWPORTS);
   const [componentSelections, setComponentSelections] = useState(DEFAULT_COMPONENTS);
+  const [sourceShape, setSourceShape] = useState(null);
 
   const [isApplying, setIsApplying] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -97,6 +97,7 @@ export function TransformExplorerProvider({ children }) {
     const payload = response.data.viewports || EMPTY_VIEWPORTS;
     setViewports(payload);
     setHasSource(Boolean(payload.spatial_original));
+    setSourceShape(response.data.meta?.source_shape || null);
   }, []);
 
   useEffect(() => {
@@ -115,6 +116,17 @@ export function TransformExplorerProvider({ children }) {
       return;
     }
     setParameterValues(buildDefaultParams(selectedOperation));
+
+    setViewports((prev) => {
+      if (!prev.spatial_original || !prev.frequency_original) {
+        return prev;
+      }
+      return {
+        ...prev,
+        spatial_transformed: prev.spatial_original,
+        frequency_transformed: prev.frequency_original,
+      };
+    });
   }, [selectedOperationId, selectedOperation]);
 
   const setParamValue = useCallback((paramId, value) => {
@@ -142,6 +154,7 @@ export function TransformExplorerProvider({ children }) {
     }
 
     setViewports(response.data.viewports || EMPTY_VIEWPORTS);
+    setSourceShape(response.data.meta?.source_shape || null);
     setHasSource(true);
   }, []);
 
@@ -172,7 +185,6 @@ export function TransformExplorerProvider({ children }) {
         operation_id: selectedOperationId,
         domain,
         params: parameterValues,
-        repeat_fourier: Number(repeatFourier) || 0,
       });
 
       if (!response.data.success) {
@@ -228,7 +240,7 @@ export function TransformExplorerProvider({ children }) {
       setError(err.message || "Failed to apply operation");
       return { success: false, error: err.message || "Apply failed" };
     }
-  }, [domain, fetchViewports, parameterValues, repeatFourier, selectedOperationId, stopPolling]);
+  }, [domain, fetchViewports, parameterValues, selectedOperationId, stopPolling]);
 
   const value = {
     operations,
@@ -239,9 +251,8 @@ export function TransformExplorerProvider({ children }) {
     setParamValue,
     domain,
     setDomain,
-    repeatFourier,
-    setRepeatFourier,
     viewports,
+    sourceShape,
     componentSelections,
     setViewportComponent,
     isApplying,

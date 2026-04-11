@@ -82,6 +82,7 @@ export function ImageViewer({ index }) {
     dragRef.current = null;
     window.removeEventListener("mousemove", onMouseMove);
     window.removeEventListener("mouseup", stopDragging);
+    window.removeEventListener("blur", stopDragging);
 
     if (toneTimerRef.current) {
       clearTimeout(toneTimerRef.current);
@@ -97,9 +98,12 @@ export function ImageViewer({ index }) {
       return;
     }
 
+    event.preventDefault();
+
     dragRef.current = { x: event.clientX, y: event.clientY, b: brightness, c: contrast };
     window.addEventListener("mousemove", onMouseMove);
     window.addEventListener("mouseup", stopDragging);
+    window.addEventListener("blur", stopDragging);
   };
 
   useEffect(() => {
@@ -110,6 +114,7 @@ export function ImageViewer({ index }) {
       cancelBrightnessAdjustments(index);
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", stopDragging);
+      window.removeEventListener("blur", stopDragging);
     };
   }, [cancelBrightnessAdjustments, index, onMouseMove, stopDragging]);
 
@@ -129,6 +134,8 @@ export function ImageViewer({ index }) {
             alt={`Input ${index + 1}`}
             className="fit-image"
             style={{ filter: `brightness(${brightnessCss}) contrast(${contrastCss})` }}
+            draggable={false}
+            onDragStart={(event) => event.preventDefault()}
           />
         ) : (
           <div className="placeholder">Double-click to load image</div>
