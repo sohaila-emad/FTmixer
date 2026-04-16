@@ -32,7 +32,8 @@ Key capabilities:
 ### Part B — Transform Explorer
 
 Load a single source image, apply one of ten mathematical operations, and watch the effect propagate across four synchronized viewports:
-<img width="1875" height="850" alt="Screenshot_16-4-2026_171923_localhost" src="https://github.com/user-attachments/assets/c822df50-4696-4885-b7c9-8e49e29e3981" />
+<img width="1859" height="918" alt="Screenshot_16-4-2026_173554_localhost" src="https://github.com/user-attachments/assets/a494654e-f6b4-4927-a473-e331e20d602f" />
+
 
 
 | Viewport | Shows |
