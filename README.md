@@ -183,6 +183,9 @@ Use the **mode switch bar** at the top to toggle between modes. The two modes ar
 
 ## Usage Walkthrough
 
+
+
+
 ### Mixing Images (Part A)
 
 1. Click **"Upload up to 4 images"** in the sidebar to load images into the four input slots. You can also **double-click any individual slot** to replace just that image.
