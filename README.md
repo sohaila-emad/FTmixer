@@ -14,6 +14,9 @@ FTmixer has two independent modes, switchable via the top navigation bar:
 
 Load up to four images and mix them together using their **Fourier Transform components**. Instead of blending pixels, you blend magnitudes, phases, real parts, or imaginary parts — letting you reconstruct a hybrid image that inherits structure from one image and texture from another.
 
+<img width="1890" height="1018" alt="Screenshot_16-4-2026_171849_localhost" src="https://github.com/user-attachments/assets/9668bd81-b678-4db2-be66-2cfa5cf26604" />
+
+
 Key capabilities:
 - **4 input image slots** with per-slot double-click replacement
 - **FT component viewer** per slot — choose between Magnitude, Phase, Real, or Imaginary display
@@ -29,6 +32,8 @@ Key capabilities:
 ### Part B — Transform Explorer
 
 Load a single source image, apply one of ten mathematical operations, and watch the effect propagate across four synchronized viewports:
+<img width="1875" height="850" alt="Screenshot_16-4-2026_171923_localhost" src="https://github.com/user-attachments/assets/c822df50-4696-4885-b7c9-8e49e29e3981" />
+
 
 | Viewport | Shows |
 |---|---|
