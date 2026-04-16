@@ -182,8 +182,8 @@ Use the **mode switch bar** at the top to toggle between modes. The two modes ar
 ---
 
 ## Usage Walkthrough
-
-
+example tutorial for this website
+https://youtu.be/9AjFmMehayk
 
 
 ### Mixing Images (Part A)
