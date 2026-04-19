@@ -1,7 +1,7 @@
 from ImageMixer.services.transform_explorer.actions import OperationSpec
 
 
-def sanitize_apply_request(payload: dict, registry: dict[str, OperationSpec]) -> tuple[str, str, dict]:
+def sanitize_apply_request(payload: dict, registry: dict[str, OperationSpec]) -> tuple[str, str, dict, int]:
     operation_id = str(payload.get("operation_id", "")).strip()
     if operation_id not in registry:
         raise ValueError("Invalid operation_id")
@@ -18,6 +18,11 @@ def sanitize_apply_request(payload: dict, registry: dict[str, OperationSpec]) ->
 
     spec = registry[operation_id]
     params = {}
+    repeat_fourier_count = int(payload.get("repeat_fourier_count", 0))
+    if repeat_fourier_count < 0:
+        raise ValueError("repeat_fourier_count is below minimum")
+    if repeat_fourier_count > 12:
+        raise ValueError("repeat_fourier_count is above maximum")
 
     for field in spec.parameters:
         key = field["id"]
@@ -63,4 +68,4 @@ def sanitize_apply_request(payload: dict, registry: dict[str, OperationSpec]) ->
 
         params[key] = value
 
-    return operation_id, domain, params
+    return operation_id, domain, params, repeat_fourier_count

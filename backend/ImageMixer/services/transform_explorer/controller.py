@@ -9,6 +9,7 @@ from ImageMixer.services.transform_explorer.complex_helpers import (
     image_to_gray_float,
     normalize_component,
     numpy_to_base64,
+    repeat_fourier_transform,
 )
 from ImageMixer.services.transform_explorer.validators import sanitize_apply_request
 
@@ -76,7 +77,7 @@ class TransformExplorerController:
             if self._is_task_cancelled(task_id, cancel_event):
                 return
 
-            operation_id, domain, params = sanitize_apply_request(payload, self.registry)
+            operation_id, domain, params, repeat_fourier_count = sanitize_apply_request(payload, self.registry)
             operation = self.registry[operation_id]
 
             self._set_progress(task_id, 20)
@@ -85,12 +86,22 @@ class TransformExplorerController:
                 if self._is_task_cancelled(task_id, cancel_event):
                     return
 
+                if repeat_fourier_count > 0:
+                    result_spatial = repeat_fourier_transform(result_spatial, repeat_fourier_count)
+                    if self._is_task_cancelled(task_id, cancel_event):
+                        return
+
                 self._set_progress(task_id, 60)
                 result_frequency = fft2c(result_spatial)
             else:
                 result_frequency = operation.apply_frequency(self.source_frequency.copy(), params)
                 if self._is_task_cancelled(task_id, cancel_event):
                     return
+
+                if repeat_fourier_count > 0:
+                    result_frequency = repeat_fourier_transform(result_frequency, repeat_fourier_count)
+                    if self._is_task_cancelled(task_id, cancel_event):
+                        return
 
                 self._set_progress(task_id, 60)
                 result_spatial = ifft2c(result_frequency)

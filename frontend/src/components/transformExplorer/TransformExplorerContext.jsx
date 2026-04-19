@@ -41,6 +41,7 @@ export function TransformExplorerProvider({ children }) {
   const [operations, setOperations] = useState([]);
   const [selectedOperationId, setSelectedOperationId] = useState("");
   const [parameterValues, setParameterValues] = useState({});
+  const [repeatFourierCount, setRepeatFourierCount] = useState(0);
 
   const [domain, setDomain] = useState("spatial");
 
@@ -78,7 +79,13 @@ export function TransformExplorerProvider({ children }) {
     setOperations(loadedOps);
 
     if (loadedOps.length > 0) {
-      setSelectedOperationId((prev) => prev || loadedOps[0].id);
+      setSelectedOperationId((prev) => {
+        if (!prev) {
+          return loadedOps[0].id;
+        }
+        const stillExists = loadedOps.some((op) => op.id === prev);
+        return stillExists ? prev : loadedOps[0].id;
+      });
       setParameterValues((prev) => {
         if (Object.keys(prev).length > 0) {
           return prev;
@@ -185,6 +192,7 @@ export function TransformExplorerProvider({ children }) {
         operation_id: selectedOperationId,
         domain,
         params: parameterValues,
+        repeat_fourier_count: repeatFourierCount,
       });
 
       if (!response.data.success) {
@@ -240,7 +248,7 @@ export function TransformExplorerProvider({ children }) {
       setError(err.message || "Failed to apply operation");
       return { success: false, error: err.message || "Apply failed" };
     }
-  }, [domain, fetchViewports, parameterValues, selectedOperationId, stopPolling]);
+  }, [domain, fetchViewports, parameterValues, repeatFourierCount, selectedOperationId, stopPolling]);
 
   const value = {
     operations,
@@ -249,6 +257,8 @@ export function TransformExplorerProvider({ children }) {
     setSelectedOperationId,
     parameterValues,
     setParamValue,
+    repeatFourierCount,
+    setRepeatFourierCount,
     domain,
     setDomain,
     viewports,

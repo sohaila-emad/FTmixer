@@ -390,6 +390,7 @@ def partb_apply_operation(request):
         "operation_id": request.data.get("operation_id"),
         "domain": request.data.get("domain", "spatial"),
         "params": request.data.get("params", {}),
+        "repeat_fourier_count": request.data.get("repeat_fourier_count", 0),
     }
 
     try:
