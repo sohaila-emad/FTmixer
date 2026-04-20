@@ -76,6 +76,63 @@ def stretch_complex(image: np.ndarray, scale_x: float, scale_y: float) -> np.nda
     return real + 1j * imag
 
 
+def stretch_complex_inverse(image: np.ndarray, scale_x: float, scale_y: float) -> np.ndarray:
+    """
+    Inverse stretch for frequency domain: applies scaling/similarity theorem.
+    When spatial domain scales by a, frequency domain scales by 1/a with amplitude 1/|a|².
+    
+    Args:
+        image: Complex-valued array (typically frequency domain data)
+        scale_x: User-specified scale factor (will be inverted)
+        scale_y: User-specified scale factor (will be inverted)
+    
+    Returns:
+        Transformed complex array with inverse geometric scaling and amplitude correction.
+    """
+    h, w = image.shape
+    cx = (w - 1) / 2.0
+    cy = (h - 1) / 2.0
+    
+    # Invert the scale factors for the other domain
+    inv_scale_x = 1.0 / scale_x
+    inv_scale_y = 1.0 / scale_y
+    
+    # Affine transformation with inverse scales
+    matrix = np.array(
+        [
+            [inv_scale_x, 0.0, (1.0 - inv_scale_x) * cx],
+            [0.0, inv_scale_y, (1.0 - inv_scale_y) * cy],
+        ],
+        dtype=np.float64,
+    )
+    
+    # Apply transformation to real and imaginary parts
+    real = cv2.warpAffine(
+        np.real(image),
+        matrix,
+        (w, h),
+        flags=cv2.INTER_LINEAR,
+        borderMode=cv2.BORDER_CONSTANT,
+        borderValue=0,
+    )
+    imag = cv2.warpAffine(
+        np.imag(image),
+        matrix,
+        (w, h),
+        flags=cv2.INTER_LINEAR,
+        borderMode=cv2.BORDER_CONSTANT,
+        borderValue=0,
+    )
+    
+    result = real + 1j * imag
+    
+    # Apply amplitude scaling: 1 / (|scale_x| * |scale_y|) per Fourier scaling theorem
+    amplitude_factor = 1.0 / (abs(scale_x) * abs(scale_y))
+    result = result * amplitude_factor
+    
+    return result
+
+
 def rotate_complex(image: np.ndarray, angle_degrees: float, auto_fit: bool = True) -> np.ndarray:
     h, w = image.shape
     center = (w / 2.0, h / 2.0)
@@ -173,13 +230,25 @@ def normalize_component(
         if log_magnitude:
             data = np.log1p(data)
     elif name == "phase":
+        if np.allclose(component, 0, atol=1e-8):
+            return np.full(component.shape, 128, dtype=np.uint8)
         data = np.angle(component)
         data = ((data + np.pi) / (2.0 * np.pi)) * 255.0
         return np.clip(data, 0, 255).astype(np.uint8)
     elif name == "real":
         data = np.real(component)
+        d_min, d_max = np.min(data), np.max(data)
+        if d_max - d_min < 1e-12:
+            return np.full_like(data, 128, dtype=np.uint8)
+        norm = (data - d_min) * (255.0 / (d_max - d_min))
+        return np.clip(norm, 0, 255).astype(np.uint8)
     elif name == "imaginary":
         data = np.imag(component)
+        d_min, d_max = np.min(data), np.max(data)
+        if d_max - d_min < 1e-12:
+            return np.full_like(data, 128, dtype=np.uint8)
+        norm = (data - d_min) * (255.0 / (d_max - d_min))
+        return np.clip(norm, 0, 255).astype(np.uint8)
     else:
         raise ValueError(f"Unsupported component: {component_name}")
 
@@ -190,7 +259,7 @@ def normalize_component(
         min_v = float(normalize_min)
         max_v = float(normalize_max)
     if max_v - min_v < 1e-12:
-        return np.zeros_like(data, dtype=np.uint8)
+        return np.full(data.shape, 128, dtype=np.uint8)
 
     norm = (data - min_v) * (255.0 / (max_v - min_v))
     return np.clip(norm, 0, 255).astype(np.uint8)

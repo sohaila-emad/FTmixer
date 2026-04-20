@@ -9,6 +9,7 @@ from ImageMixer.services.transform_explorer.complex_helpers import (
     repeat_fourier_transform,
     rotate_complex,
     stretch_complex,
+    stretch_complex_inverse,
 )
 
 
@@ -33,16 +34,25 @@ def _shift(image: np.ndarray, params: dict) -> np.ndarray:
 
 def _complex_exponential(image: np.ndarray, params: dict) -> np.ndarray:
     h, w = image.shape
-    xx, yy = np.meshgrid(np.arange(w), np.arange(h))
+
+    # Coordinates normalized to [-0.5, 0.5] so omega is image-size independent
+    xx, yy = np.meshgrid(
+        np.linspace(-0.5, 0.5, w, endpoint=False),
+        np.linspace(-0.5, 0.5, h, endpoint=False),
+    )
 
     omega_x = float(params.get("omega_x", 0.0))
     omega_y = float(params.get("omega_y", 0.0))
     phase = float(params.get("phase", 0.0))
     amplitude = float(params.get("amplitude", 1.0))
 
-    phase_map = omega_x * xx + omega_y * yy + phase
+    phase_map = 2.0 * np.pi * (omega_x * xx + omega_y * yy) + phase
     multiplier = amplitude * np.exp(1j * phase_map)
     return image * multiplier
+
+
+def _complex_exponential_spatial(image: np.ndarray, params: dict) -> np.ndarray:
+    return _complex_exponential(image, params)
 
 
 def _stretch(image: np.ndarray, params: dict) -> np.ndarray:
@@ -51,7 +61,28 @@ def _stretch(image: np.ndarray, params: dict) -> np.ndarray:
     return stretch_complex(image, scale_x, scale_y)
 
 
-def _mirror(image: np.ndarray, params: dict) -> np.ndarray:
+def _stretch_theorem_spatial(image: np.ndarray, params: dict) -> np.ndarray:
+    """Stretch in spatial domain: direct scaling by user-specified factors."""
+    scale_x = max(1e-6, float(params.get("scale_x", 1.0)))
+    scale_y = max(1e-6, float(params.get("scale_y", 1.0)))
+    return stretch_complex(image, scale_x, scale_y)
+
+
+def _stretch_theorem_frequency(image: np.ndarray, params: dict) -> np.ndarray:
+    """Stretch in frequency domain: inverse scaling by 1/a with amplitude 1/|a|²."""
+    scale_x = max(1e-6, float(params.get("scale_x", 1.0)))
+    scale_y = max(1e-6, float(params.get("scale_y", 1.0)))
+    return stretch_complex_inverse(image, scale_x, scale_y)
+
+
+def _mirror_impl(image: np.ndarray, params: dict, conjugate: bool = False) -> np.ndarray:
+    """Mirror/flip operation with optional conjugation for frequency domain.
+    
+    Args:
+        image: Complex array to mirror
+        params: Contains 'axis' and 'direction' parameters
+        conjugate: If True, conjugate the flipped content before concatenating (for frequency domain)
+    """
     axis = str(params.get("axis", "horizontal"))
     direction = str(params.get("direction", "positive"))
 
@@ -59,6 +90,8 @@ def _mirror(image: np.ndarray, params: dict) -> np.ndarray:
 
     if axis in ("horizontal", "both"):
         flipped = np.flipud(output)
+        if conjugate:
+            flipped = np.conj(flipped)
         if direction == "positive":
             output = np.concatenate([output, flipped], axis=0)
         elif direction == "negative":
@@ -68,6 +101,8 @@ def _mirror(image: np.ndarray, params: dict) -> np.ndarray:
 
     if axis in ("vertical", "both"):
         flipped = np.fliplr(output)
+        if conjugate:
+            flipped = np.conj(flipped)
         if direction == "positive":
             output = np.concatenate([output, flipped], axis=1)
         elif direction == "negative":
@@ -76,6 +111,16 @@ def _mirror(image: np.ndarray, params: dict) -> np.ndarray:
             output = np.concatenate([flipped, output, flipped], axis=1)
 
     return output
+
+
+def _mirror(image: np.ndarray, params: dict) -> np.ndarray:
+    """Mirror in spatial domain: flip without conjugation."""
+    return _mirror_impl(image, params, conjugate=False)
+
+
+def _mirror_frequency(image: np.ndarray, params: dict) -> np.ndarray:
+    """Mirror in frequency domain: flip with conjugation (Fourier property)."""
+    return _mirror_impl(image, params, conjugate=True)
 
 
 def _even_odd(image: np.ndarray, params: dict) -> np.ndarray:
@@ -174,16 +219,14 @@ def _operation_specs() -> list[OperationSpec]:
         OperationSpec(
             operation_id="complex_exponential",
             name="Multiply By Complex Exponential",
-            description="Multiply by A * exp(j * (wx*x + wy*y + phase)).",
+            description="Multiply by A * exp(j * 2pi * (wx*x + wy*y) + phase). Coords normalised to [-0.5, 0.5].",
             parameters=[
                 {"id": "amplitude", "label": "Amplitude", "type": "number", "min": 0.0, "max": 1000.0, "step": 0.01, "default": 1.0},
-                {"id": "omega_x", "label": "Omega X", "type": "number", "min": -100.0, "max": 100.0, "step": 0.01, "default": 0.0},
-                {"id": "omega_y", "label": "Omega Y", "type": "number", "min": -100.0, "max": 100.0, "step": 0.01, "default": 0.0},
-                {"id": "phase", "label": "Phase", "type": "number", "min": -1000, "max": 1000, "step": 0.01, "default": 0.0},
-
-                # {"id": "phase", "label": "Phase", "type": "number", "min": -6.283185, "max": 6.283185, "step": 0.01, "default": 0.0},
+                {"id": "omega_x", "label": "Omega X (cycles/image)", "type": "number", "min": -100.0, "max": 100.0, "step": 0.01, "default": 0.0},
+                {"id": "omega_y", "label": "Omega Y (cycles/image)", "type": "number", "min": -100.0, "max": 100.0, "step": 0.01, "default": 0.0},
+                {"id": "phase", "label": "Phase (radians)", "type": "number", "min": -6.283185, "max": 6.283185, "step": 0.01, "default": 0.0},
             ],
-            apply_spatial=_complex_exponential,
+            apply_spatial=_complex_exponential_spatial,
             apply_frequency=_complex_exponential,
         ),
         OperationSpec(
@@ -198,15 +241,26 @@ def _operation_specs() -> list[OperationSpec]:
             apply_frequency=_stretch,
         ),
         OperationSpec(
+            operation_id="stretch_theorem",
+            name="Stretch (Scaling Theorem)",
+            description="Fourier scaling/similarity theorem: spatial scales by a, frequency by 1/a with amplitude 1/|a|².",
+            parameters=[
+                {"id": "scale_x", "label": "Scale X", "type": "number", "min": 0.00001, "max": 1000.0, "step": 0.01, "default": 1.0},
+                {"id": "scale_y", "label": "Scale Y", "type": "number", "min": 0.00001, "max": 1000.0, "step": 0.01, "default": 1.0},
+            ],
+            apply_spatial=_stretch_theorem_spatial,
+            apply_frequency=_stretch_theorem_frequency,
+        ),
+        OperationSpec(
             operation_id="mirror",
             name="Mirror / Symmetry Duplication",
-            description="Duplicate mirrored content by axis and direction.",
+            description="Duplicate mirrored content by axis and direction. Frequency domain applies conjugation per Fourier properties.",
             parameters=[
                 {"id": "axis", "label": "Axis", "type": "select", "options": ["horizontal", "vertical", "both"], "default": "horizontal"},
                 {"id": "direction", "label": "Direction", "type": "select", "options": ["positive", "negative", "both"], "default": "positive"},
             ],
             apply_spatial=_mirror,
-            apply_frequency=_mirror,
+            apply_frequency=_mirror_frequency,
         ),
         OperationSpec(
             operation_id="even_odd",

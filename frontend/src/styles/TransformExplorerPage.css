@@ -191,7 +191,7 @@
   max-width: none;
   max-height: none;
   object-fit: none;
-  background: linear-gradient(145deg, #040c16, #081221);
+  background: transparent;
   user-select: none;
   -webkit-user-drag: none;
 }

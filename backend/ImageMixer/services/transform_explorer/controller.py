@@ -154,6 +154,20 @@ class TransformExplorerController:
         mag_min = float(np.min(mag_data))
         mag_max = float(np.max(mag_data))
 
+        if not is_frequency:
+            real_data = np.real(data)
+            imag_data = np.imag(data)
+
+            # Use the real part's peak magnitude as the shared scale for both
+            # components so that zero is always mid-grey (128) and real/imag
+            # are directly comparable on the same axis.
+            scale = max(float(np.max(np.abs(real_data))), 1e-12)
+            real_img = np.clip((real_data / (2.0 * scale)) * 255 + 128, 0, 255).astype(np.uint8)
+            imag_img = np.clip((imag_data / (2.0 * scale)) * 255 + 128, 0, 255).astype(np.uint8)
+        else:
+            real_img = normalize_component(data, "real", log_magnitude=False)
+            imag_img = normalize_component(data, "imaginary", log_magnitude=False)
+
         return {
             "magnitude": numpy_to_base64(
                 normalize_component(
@@ -165,8 +179,8 @@ class TransformExplorerController:
                 )
             ),
             "phase": numpy_to_base64(normalize_component(data, "phase", log_magnitude=False)),
-            "real": numpy_to_base64(normalize_component(data, "real", log_magnitude=False)),
-            "imaginary": numpy_to_base64(normalize_component(data, "imaginary", log_magnitude=False)),
+            "real": numpy_to_base64(real_img),
+            "imaginary": numpy_to_base64(imag_img),
         }
 
     def _encode_components_with_reference(self, data: np.ndarray, reference: np.ndarray, is_frequency: bool) -> dict:
@@ -177,6 +191,22 @@ class TransformExplorerController:
         mag_min = float(np.min(ref_mag))
         mag_max = float(np.max(ref_mag))
 
+        if not is_frequency:
+            real_data = np.real(data)
+            imag_data = np.imag(data)
+
+            # Anchor scale to the *reference* real peak so that:
+            #   - zero is always mid-grey (128) regardless of phase rotation
+            #   - real and imaginary are on the same axis
+            #   - a pure pi/2 phase rotation shows: real=flat grey, imag=normal image
+            #   - a tiny imaginary residual stays near mid-grey instead of self-normalising
+            scale = max(float(np.max(np.abs(np.real(reference)))), 1e-12)
+            real_img = np.clip((real_data / (2.0 * scale)) * 255 + 128, 0, 255).astype(np.uint8)
+            imag_img = np.clip((imag_data / (2.0 * scale)) * 255 + 128, 0, 255).astype(np.uint8)
+        else:
+            real_img = normalize_component(data, "real", log_magnitude=False)
+            imag_img = normalize_component(data, "imaginary", log_magnitude=False)
+
         return {
             "magnitude": numpy_to_base64(
                 normalize_component(
@@ -188,8 +218,8 @@ class TransformExplorerController:
                 )
             ),
             "phase": numpy_to_base64(normalize_component(data, "phase", log_magnitude=False)),
-            "real": numpy_to_base64(normalize_component(data, "real", log_magnitude=False)),
-            "imaginary": numpy_to_base64(normalize_component(data, "imaginary", log_magnitude=False)),
+            "real": numpy_to_base64(real_img),
+            "imaginary": numpy_to_base64(imag_img),
         }
 
     def get_meta(self) -> dict:
