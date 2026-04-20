@@ -8,7 +8,7 @@ export default function App() {
     <div className="app-shell">
       <header className="mode-switch-bar">
         <NavLink to="/mixer" className={({ isActive }) => `mode-switch-link ${isActive ? "active" : ""}`}>
-          Part A Mixer
+          Fourier Playground
         </NavLink>
         <NavLink
           to="/transform-explorer"

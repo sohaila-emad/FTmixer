@@ -30,8 +30,12 @@ def ifft2c(frequency: np.ndarray) -> np.ndarray:
 
 def repeat_fourier_transform(data: np.ndarray, count: int) -> np.ndarray:
     result = data.copy()
+    # Use unitary scaling per iteration to keep energy bounded across repeated FFTs.
+    scale = np.sqrt(float(data.shape[0] * data.shape[1])) if data.ndim == 2 else 1.0
     for _ in range(max(0, int(count))):
         result = np.fft.fftshift(np.fft.fft2(result))
+        if scale > 0.0:
+            result = result / scale
     return result
 
 

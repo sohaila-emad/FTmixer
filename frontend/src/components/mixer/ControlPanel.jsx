@@ -167,15 +167,25 @@ export function ControlPanel() {
         </select>
       </div>
 
-      <div className="panel-card">
-        <h3>ROI</h3>
-        <div className="grid-two">
-          <label>Left <input type="number" value={roi[0]} onChange={(e) => setRoiPart(0, e.target.value)} /></label>
-          <label>Top <input type="number" value={roi[1]} onChange={(e) => setRoiPart(1, e.target.value)} /></label>
-          <label>Right <input type="number" value={roi[2]} onChange={(e) => setRoiPart(2, e.target.value)} /></label>
-          <label>Bottom <input type="number" value={roi[3]} onChange={(e) => setRoiPart(3, e.target.value)} /></label>
+      {regionMode === "INNER_OUTER" ? (
+        <div className="panel-card">
+          <h3>ROI</h3>
+          <div className="grid-two">
+            <label>
+              Left <input type="number" value={roi[0]} onChange={(e) => setRoiPart(0, e.target.value)} />
+            </label>
+            <label>
+              Top <input type="number" value={roi[1]} onChange={(e) => setRoiPart(1, e.target.value)} />
+            </label>
+            <label>
+              Right <input type="number" value={roi[2]} onChange={(e) => setRoiPart(2, e.target.value)} />
+            </label>
+            <label>
+              Bottom <input type="number" value={roi[3]} onChange={(e) => setRoiPart(3, e.target.value)} />
+            </label>
+          </div>
         </div>
-      </div>
+      ) : null}
 
       {weights.map((weight, idx) => (
         <div className="panel-card" key={`weight-${idx}`}>
@@ -190,11 +200,15 @@ export function ControlPanel() {
               </option>
             ))}
           </select>
-          <label>Region Mode</label>
-          <select value={imageRegionModes[idx]} onChange={(e) => setImageRegionMode(idx, e.target.value)}>
-            <option value="INNER">Inner</option>
-            <option value="OUTER">Outer</option>
-          </select>
+          {regionMode === "INNER_OUTER" ? (
+            <>
+              <label>Region Mode</label>
+              <select value={imageRegionModes[idx]} onChange={(e) => setImageRegionMode(idx, e.target.value)}>
+                <option value="INNER">Inner</option>
+                <option value="OUTER">Outer</option>
+              </select>
+            </>
+          ) : null}
         </div>
       ))}
 
