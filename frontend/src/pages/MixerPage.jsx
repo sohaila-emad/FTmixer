@@ -13,7 +13,7 @@ export function MixerPage() {
     <ImageMixerProvider>
       <div className="mixer-shell">
         <aside className="left-panel">
-          <h1>Frequency Blend Studio</h1>
+          <h1>Fourier Playground</h1>
           <ControlPanel />
         </aside>
 

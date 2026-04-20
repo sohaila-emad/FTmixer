@@ -9,6 +9,8 @@ export function TransformControlPanel() {
     setSelectedOperationId,
     parameterValues,
     setParamValue,
+    repeatFourierCount,
+    setRepeatFourierCount,
     domain,
     setDomain,
     isApplying,
@@ -119,6 +121,31 @@ export function TransformControlPanel() {
           <option value="spatial">Spatial Domain</option>
           <option value="frequency">Frequency Domain</option>
         </select>
+      </div>
+
+      <div className="panel-card">
+        <h3>Repeated Fourier (Global)</h3>
+        <label>
+          <span>Count</span>
+          <input
+            type="number"
+            value={repeatFourierCount}
+            min={0}
+            max={12}
+            step={1}
+            onChange={(event) => {
+              const raw = event.target.value;
+              if (raw === "") {
+                setRepeatFourierCount(0);
+                return;
+              }
+              const parsed = Number.parseInt(raw, 10);
+              const safe = Number.isNaN(parsed) ? 0 : Math.max(0, Math.min(12, parsed));
+              setRepeatFourierCount(safe);
+            }}
+          />
+        </label>
+        <p className="muted">Applied after the selected operation, in whichever domain you chose.</p>
       </div>
 
       <div className="panel-card">

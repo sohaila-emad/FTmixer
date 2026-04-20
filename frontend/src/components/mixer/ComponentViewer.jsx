@@ -31,7 +31,6 @@ export function ComponentViewer({ index }) {
     setRoi,
     regionMode,
     imageRegionModes,
-    mixImages,
     adjustBrightnessContrast,
   } = useImageMixer();
 
@@ -231,23 +230,17 @@ export function ComponentViewer({ index }) {
       const deltaY = Math.round((event.clientY - session.startClientY) * (session.naturalHeight / session.frameHeight));
       const next = moveRoi(session, deltaX, deltaY);
 
-      session.lastBounds = next;
       setRoi(next);
     },
     [moveRoi, setRoi]
   );
 
   const endRoiDrag = useCallback(() => {
-    const session = roiDragRef.current;
     roiDragRef.current = null;
 
     window.removeEventListener("mousemove", handleRoiMove);
     window.removeEventListener("mouseup", endRoiDrag);
-
-    if (session?.lastBounds && regionMode !== "FULL") {
-      mixImages(session.lastBounds).catch(() => {});
-    }
-  }, [handleRoiMove, mixImages, regionMode]);
+  }, [handleRoiMove]);
 
   const startRoiDrag = (event, handle = null) => {
     if (!roiDisplay || !imageFrame) {
@@ -266,7 +259,6 @@ export function ComponentViewer({ index }) {
       naturalWidth: imageFrame.naturalWidth,
       naturalHeight: imageFrame.naturalHeight,
       startBounds: [...roiDisplay.bounds],
-      lastBounds: [...roiDisplay.bounds],
     };
 
     window.addEventListener("mousemove", handleRoiMove);

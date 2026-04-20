@@ -15,6 +15,8 @@
   overflow-y: auto;
   min-height: 0;
   backdrop-filter: blur(8px);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(22, 244, 208, 0.7) rgba(9, 21, 37, 0.82);
 }
 
 .left-panel h1 {
@@ -31,6 +33,32 @@
   gap: 1rem;
   overflow-y: auto;
   min-height: 0;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(22, 244, 208, 0.7) rgba(9, 21, 37, 0.82);
+}
+
+.left-panel::-webkit-scrollbar,
+.right-panel::-webkit-scrollbar {
+  width: 0.9rem;
+}
+
+.left-panel::-webkit-scrollbar-track,
+.right-panel::-webkit-scrollbar-track {
+  background: rgba(9, 21, 37, 0.82);
+  border-radius: 999px;
+}
+
+.left-panel::-webkit-scrollbar-thumb,
+.right-panel::-webkit-scrollbar-thumb {
+  border: 0.22rem solid rgba(9, 21, 37, 0.82);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(34, 182, 255, 0.88), rgba(22, 244, 208, 0.92));
+  box-shadow: 0 0 0 1px rgba(126, 233, 255, 0.08);
+}
+
+.left-panel::-webkit-scrollbar-thumb:hover,
+.right-panel::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(22, 244, 208, 0.98), rgba(34, 182, 255, 0.92));
 }
 
 .panel-stack {
@@ -62,6 +90,66 @@
 .panel-card input {
   width: 100%;
   margin-top: 0.35rem;
+}
+
+input[type="range"] {
+  width: 100%;
+  padding: 0;
+  margin: 0.5rem 0 0.2rem;
+  background: transparent;
+  border: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  accent-color: var(--accent-a);
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 0.46rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(34, 182, 255, 0.4), rgba(22, 244, 208, 0.42));
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 1rem;
+  height: 1rem;
+  margin-top: -0.27rem;
+  border-radius: 50%;
+  background: #f5fdff;
+  border: 2px solid var(--accent-a);
+  box-shadow: 0 0 0 3px rgba(22, 244, 208, 0.16);
+}
+
+input[type="range"]::-moz-range-track {
+  height: 0.46rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(34, 182, 255, 0.4), rgba(22, 244, 208, 0.42));
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  background: #f5fdff;
+  border: 2px solid var(--accent-a);
+  box-shadow: 0 0 0 3px rgba(22, 244, 208, 0.16);
+}
+
+.inline-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.55rem;
+  font-size: 0.85rem;
+  line-height: 1.2;
+}
+
+.inline-toggle input {
+  width: auto;
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0;
 }
 
 .grid-two {

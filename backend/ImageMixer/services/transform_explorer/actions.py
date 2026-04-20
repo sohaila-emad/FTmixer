@@ -1,12 +1,12 @@
 from dataclasses import dataclass
 from typing import Callable
 
+import cv2
 import numpy as np
 
 from ImageMixer.services.transform_explorer.complex_helpers import (
     build_convolution_kernel,
     convolve_complex,
-    repeat_fourier_transform,
     rotate_complex,
     stretch_complex,
     stretch_complex_inverse,
@@ -29,7 +29,39 @@ class OperationSpec:
 def _shift(image: np.ndarray, params: dict) -> np.ndarray:
     shift_x = int(params.get("shift_x", 0))
     shift_y = int(params.get("shift_y", 0))
-    return np.roll(np.roll(image, shift_y, axis=0), shift_x, axis=1)
+    mode = str(params.get("mode", "circular")).strip().lower()
+
+    if mode == "circular":
+        return np.roll(np.roll(image, shift_y, axis=0), shift_x, axis=1)
+
+    if mode == "zero_fill":
+        h, w = image.shape
+        matrix = np.array(
+            [
+                [1.0, 0.0, float(shift_x)],
+                [0.0, 1.0, float(shift_y)],
+            ],
+            dtype=np.float64,
+        )
+        real = cv2.warpAffine(
+            np.real(image),
+            matrix,
+            (w, h),
+            flags=cv2.INTER_NEAREST,
+            borderMode=cv2.BORDER_CONSTANT,
+            borderValue=0,
+        )
+        imag = cv2.warpAffine(
+            np.imag(image),
+            matrix,
+            (w, h),
+            flags=cv2.INTER_NEAREST,
+            borderMode=cv2.BORDER_CONSTANT,
+            borderValue=0,
+        )
+        return real + 1j * imag
+
+    raise ValueError("mode must be circular or zero_fill")
 
 
 def _complex_exponential(image: np.ndarray, params: dict) -> np.ndarray:
@@ -188,11 +220,6 @@ def _window_multiply(image: np.ndarray, params: dict) -> np.ndarray:
     return convolve_complex(image, kernel, step_size)
 
 
-def _fourier_repeat(image: np.ndarray, params: dict) -> np.ndarray:
-    count = max(0, int(params.get("count", 1)))
-    return repeat_fourier_transform(image, count)
-
-
 def _operation_specs() -> list[OperationSpec]:
     base_window_params = [
         {"id": "window_type", "label": "Window Type", "type": "select", "options": ["rectangular", "gaussian", "hamming", "hanning"], "default": "rectangular"},
@@ -210,8 +237,9 @@ def _operation_specs() -> list[OperationSpec]:
             name="Shift",
             description="Translate image by x/y offsets.",
             parameters=[
-                {"id": "shift_x", "label": "Shift X", "type": "int", "min": -1024, "max": 1024, "step": 1, "default": 0},
-                {"id": "shift_y", "label": "Shift Y", "type": "int", "min": -1024, "max": 1024, "step": 1, "default": 0},
+                {"id": "shift_x", "label": "Shift X", "type": "int", "min": -1000000, "max": 1000000, "step": 1, "default": 0},
+                {"id": "shift_y", "label": "Shift Y", "type": "int", "min": -1000000, "max": 1000000, "step": 1, "default": 0},
+                {"id": "mode", "label": "Boundary Mode", "type": "select", "options": ["circular", "zero_fill"], "default": "circular"},
             ],
             apply_spatial=_shift,
             apply_frequency=_shift,
@@ -312,16 +340,6 @@ def _operation_specs() -> list[OperationSpec]:
             parameters=base_window_params,
             apply_spatial=_window_multiply,
             apply_frequency=_window_multiply,
-        ),
-        OperationSpec(
-            operation_id="fourier_repeat",
-            name="Repeated Fourier",
-            description="Apply Fourier transform multiple times.",
-            parameters=[
-                {"id": "count", "label": "Count", "type": "int", "min": 1, "max": 12, "step": 1, "default": 1},
-            ],
-            apply_spatial=_fourier_repeat,
-            apply_frequency=_fourier_repeat,
         ),
     ]
 

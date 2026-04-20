@@ -9,6 +9,7 @@ from ImageMixer.services.transform_explorer.complex_helpers import (
     image_to_gray_float,
     normalize_component,
     numpy_to_base64,
+    repeat_fourier_transform,
 )
 from ImageMixer.services.transform_explorer.validators import sanitize_apply_request
 
@@ -30,6 +31,8 @@ class TransformExplorerController:
         self._is_processing = False
         self._progress = 0
         self._latest_error = None
+        self._last_operation_id = None
+        self._last_operation_params = {}
 
     def _is_task_cancelled(self, task_id: int, cancel_event: threading.Event) -> bool:
         return cancel_event.is_set() or task_id != self._active_task_id
@@ -55,6 +58,8 @@ class TransformExplorerController:
             self._latest_error = None
             self._is_processing = False
             self._progress = 100
+            self._last_operation_id = None
+            self._last_operation_params = {}
 
     def list_operations(self) -> list[dict]:
         ops = []
@@ -76,7 +81,7 @@ class TransformExplorerController:
             if self._is_task_cancelled(task_id, cancel_event):
                 return
 
-            operation_id, domain, params = sanitize_apply_request(payload, self.registry)
+            operation_id, domain, params, repeat_fourier_count = sanitize_apply_request(payload, self.registry)
             operation = self.registry[operation_id]
 
             self._set_progress(task_id, 20)
@@ -85,12 +90,22 @@ class TransformExplorerController:
                 if self._is_task_cancelled(task_id, cancel_event):
                     return
 
+                if repeat_fourier_count > 0:
+                    result_spatial = repeat_fourier_transform(result_spatial, repeat_fourier_count)
+                    if self._is_task_cancelled(task_id, cancel_event):
+                        return
+
                 self._set_progress(task_id, 60)
                 result_frequency = fft2c(result_spatial)
             else:
                 result_frequency = operation.apply_frequency(self.source_frequency.copy(), params)
                 if self._is_task_cancelled(task_id, cancel_event):
                     return
+
+                if repeat_fourier_count > 0:
+                    result_frequency = repeat_fourier_transform(result_frequency, repeat_fourier_count)
+                    if self._is_task_cancelled(task_id, cancel_event):
+                        return
 
                 self._set_progress(task_id, 60)
                 result_spatial = ifft2c(result_frequency)
@@ -102,6 +117,8 @@ class TransformExplorerController:
             if task_id == self._active_task_id:
                 self.transformed_spatial = result_spatial
                 self.transformed_frequency = result_frequency
+                self._last_operation_id = operation_id
+                self._last_operation_params = dict(params)
 
             self._set_progress(task_id, 100)
         except Exception as exc:
@@ -243,17 +260,29 @@ class TransformExplorerController:
                 "frequency_transformed": None,
             }
 
-        return {
-            "spatial_original": self._encode_components(self.source_spatial, is_frequency=False),
-            "spatial_transformed": self._encode_components_with_reference(
+        use_reference_brightness = (
+            self._last_operation_id == "complex_exponential"
+            and "amplitude" in self._last_operation_params
+        )
+
+        if use_reference_brightness:
+            spatial_transformed = self._encode_components_with_reference(
                 self.transformed_spatial,
                 self.source_spatial,
                 is_frequency=False,
-            ),
-            "frequency_original": self._encode_components(self.source_frequency, is_frequency=True),
-            "frequency_transformed": self._encode_components_with_reference(
+            )
+            frequency_transformed = self._encode_components_with_reference(
                 self.transformed_frequency,
                 self.source_frequency,
                 is_frequency=True,
-            ),
+            )
+        else:
+            spatial_transformed = self._encode_components(self.transformed_spatial, is_frequency=False)
+            frequency_transformed = self._encode_components(self.transformed_frequency, is_frequency=True)
+
+        return {
+            "spatial_original": self._encode_components(self.source_spatial, is_frequency=False),
+            "spatial_transformed": spatial_transformed,
+            "frequency_original": self._encode_components(self.source_frequency, is_frequency=True),
+            "frequency_transformed": frequency_transformed,
         }

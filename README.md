@@ -10,9 +10,12 @@ Built with Django + DRF on the backend and React + Vite on the frontend.
 
 FTmixer has two independent modes, switchable via the top navigation bar:
 
-### Part A — Frequency Blend Studio
+### Fourier Playground
 
 Load up to four images and mix them together using their **Fourier Transform components**. Instead of blending pixels, you blend magnitudes, phases, real parts, or imaginary parts — letting you reconstruct a hybrid image that inherits structure from one image and texture from another.
+<img width="1883" height="969" alt="Screenshot_16-4-2026_173712_localhost" src="https://github.com/user-attachments/assets/33ff82b7-8d82-43c5-aad1-f48fda3b34ab" />
+
+
 
 Key capabilities:
 - **4 input image slots** with per-slot double-click replacement
@@ -29,6 +32,9 @@ Key capabilities:
 ### Part B — Transform Explorer
 
 Load a single source image, apply one of ten mathematical operations, and watch the effect propagate across four synchronized viewports:
+<img width="1859" height="918" alt="Screenshot_16-4-2026_173554_localhost" src="https://github.com/user-attachments/assets/a494654e-f6b4-4927-a473-e331e20d602f" />
+
+
 
 | Viewport | Shows |
 |---|---|
@@ -176,6 +182,9 @@ Use the **mode switch bar** at the top to toggle between modes. The two modes ar
 ---
 
 ## Usage Walkthrough
+example tutorial for this website
+https://youtu.be/9AjFmMehayk
+
 
 ### Mixing Images (Part A)
 
