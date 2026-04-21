@@ -29,7 +29,7 @@ export function ImageViewer({ index }) {
     await uploadImage(file, index);
   };
 
-  const flushToneUpdate = useCallback((includeImage = false) => {
+  const flushToneUpdate = useCallback(async (includeImage = false) => {
     if (!pendingToneRef.current) {
       return;
     }
@@ -37,11 +37,13 @@ export function ImageViewer({ index }) {
     const { nextBrightness, nextContrast } = pendingToneRef.current;
     pendingToneRef.current = null;
 
-    adjustBrightnessContrast(index, nextBrightness, nextContrast, {
+    await adjustBrightnessContrast(index, nextBrightness, nextContrast, {
       includeImage,
       abortPrevious: true,
     }).catch(() => {});
-  }, [adjustBrightnessContrast, index]);
+
+    await getImageComponent(index, componentTypes[index]).catch(() => {});
+  }, [adjustBrightnessContrast, componentTypes, getImageComponent, index]);
 
   const scheduleToneUpdate = useCallback((nextBrightness, nextContrast) => {
     pendingToneRef.current = { nextBrightness, nextContrast };
@@ -52,7 +54,7 @@ export function ImageViewer({ index }) {
 
     toneTimerRef.current = setTimeout(() => {
       toneTimerRef.current = null;
-      flushToneUpdate(false);
+      flushToneUpdate(false).catch(() => {});
     }, 45);
   }, [flushToneUpdate]);
 
@@ -89,8 +91,7 @@ export function ImageViewer({ index }) {
       toneTimerRef.current = null;
     }
 
-    flushToneUpdate(false);
-    getImageComponent(index, componentTypes[index]).catch(() => {});
+    flushToneUpdate(false).catch(() => {});
   }, [componentTypes, flushToneUpdate, getImageComponent, index, onMouseMove]);
 
   const onMouseDown = (event) => {

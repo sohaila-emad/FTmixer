@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useImageMixer } from "./ImageMixerContext";
 import { MixerProgressBar } from "./MixerProgressBar";
 
@@ -20,7 +20,9 @@ export function ControlPanel() {
     currentOutputViewer,
     setCurrentOutputViewer,
     sizePolicy,
+    setSizePolicy,
     keepAspectRatio,
+    setKeepAspectRatio,
     fixedSize,
     setFixedSize,
     applyImageSizing,
@@ -33,6 +35,30 @@ export function ControlPanel() {
   } = useImageMixer();
 
   const multiInputRef = useRef(null);
+  const [fixedWidthInput, setFixedWidthInput] = useState(String(fixedSize.width));
+  const [fixedHeightInput, setFixedHeightInput] = useState(String(fixedSize.height));
+
+  useEffect(() => {
+    setFixedWidthInput(String(fixedSize.width));
+  }, [fixedSize.width]);
+
+  useEffect(() => {
+    setFixedHeightInput(String(fixedSize.height));
+  }, [fixedSize.height]);
+
+  const commitFixedSize = () => {
+    const parsedWidth = Number.parseInt(fixedWidthInput, 10);
+    const parsedHeight = Number.parseInt(fixedHeightInput, 10);
+    if (!Number.isFinite(parsedWidth) || !Number.isFinite(parsedHeight)) {
+      return;
+    }
+
+    const width = Math.max(1, parsedWidth);
+    const height = Math.max(1, parsedHeight);
+    const next = { width, height };
+    setFixedSize(next);
+    applyImageSizing({ policy: "fixed", fixedWidth: width, fixedHeight: height }).catch(() => {});
+  };
 
   const setWeight = (index, value) => {
     const next = [...weights];
@@ -93,6 +119,7 @@ export function ControlPanel() {
           value={sizePolicy}
           onChange={(e) => {
             const policy = e.target.value;
+            setSizePolicy(policy);
             applyImageSizing({ policy }).catch(() => {});
           }}
         >
@@ -107,7 +134,8 @@ export function ControlPanel() {
             checked={keepAspectRatio}
             onChange={(e) => {
               const checked = e.target.checked;
-              applyImageSizing({ keepAspectRatio: checked, applyNow: false }).catch(() => {});
+              setKeepAspectRatio(checked);
+              applyImageSizing({ keepAspectRatio: checked }).catch(() => {});
             }}
           />
           <span>Keep Aspect Ratio</span>
@@ -120,12 +148,18 @@ export function ControlPanel() {
               <input
                 type="number"
                 min={1}
-                value={fixedSize.width}
+                value={fixedWidthInput}
                 onChange={(e) => {
-                  const width = Number(e.target.value || 1);
-                  const next = { ...fixedSize, width };
-                  setFixedSize(next);
-                  applyImageSizing({ policy: "fixed", fixedWidth: width, fixedHeight: next.height }).catch(() => {});
+                  setFixedWidthInput(e.target.value);
+                }}
+                onBlur={() => {
+                  commitFixedSize();
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    commitFixedSize();
+                    e.currentTarget.blur();
+                  }
                 }}
               />
             </label>
@@ -134,12 +168,18 @@ export function ControlPanel() {
               <input
                 type="number"
                 min={1}
-                value={fixedSize.height}
+                value={fixedHeightInput}
                 onChange={(e) => {
-                  const height = Number(e.target.value || 1);
-                  const next = { ...fixedSize, height };
-                  setFixedSize(next);
-                  applyImageSizing({ policy: "fixed", fixedWidth: next.width, fixedHeight: height }).catch(() => {});
+                  setFixedHeightInput(e.target.value);
+                }}
+                onBlur={() => {
+                  commitFixedSize();
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    commitFixedSize();
+                    e.currentTarget.blur();
+                  }
                 }}
               />
             </label>

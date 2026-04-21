@@ -99,6 +99,11 @@ class CustomImage:
             raise ValueError("image is not loaded")
         return self._mix_image
 
+    def get_source_size(self) -> tuple[int, int]:
+        if not self.loaded or self._source_gray is None:
+            raise ValueError("image is not loaded")
+        return int(self._source_gray.shape[0]), int(self._source_gray.shape[1])
+
     def get_mix_fft(self) -> np.ndarray:
         if self._mix_fft is None:
             self._compute_mix_fft()

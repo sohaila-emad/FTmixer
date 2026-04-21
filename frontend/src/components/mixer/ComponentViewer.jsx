@@ -124,7 +124,7 @@ export function ComponentViewer({ index }) {
         toneRequestCounterRef.current = requestToken;
 
         const adjustResult = await adjustBrightnessContrast(index, brightness, contrast, {
-          includeImage: false,
+          includeImage: true,
           abortPrevious: true,
         });
 

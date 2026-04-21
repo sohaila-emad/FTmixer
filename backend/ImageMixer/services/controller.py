@@ -64,11 +64,13 @@ class MixerController:
         if self._size_policy == "fixed":
             return self._fixed_size
 
-        heights = [img.get_image_for_mixing().shape[0] for img in loaded]
-        widths = [img.get_image_for_mixing().shape[1] for img in loaded]
+        source_sizes = [img.get_source_size() for img in loaded]
+
+        # Keep a real source aspect ratio by selecting one source size, instead of
+        # combining min/max height and width from different images.
         if self._size_policy == "largest":
-            return max(heights), max(widths)
-        return min(heights), min(widths)
+            return max(source_sizes, key=lambda size: size[0] * size[1])
+        return min(source_sizes, key=lambda size: size[0] * size[1])
 
     def set_image_sizing(
         self,
